@@ -27,11 +27,11 @@ Formulário multi-step para cadastro de colaboradores, com persistência em Fire
 ## Configuração do Firebase
 
 O projeto já está integrado com Firebase Firestore.  
-Se quiser rodar com suas próprias credenciais, edite o arquivo `src/services/config.ts` com suas informações do Firebase.
+Se quiser rodar com suas próprias credenciais, edite o arquivo `src/firebase/config.ts` com suas informações do Firebase.
 
 ## Deploy
 
-O projeto está hospedado em: [link do deploy](https://seuprojeto.vercel.app)
+O projeto está hospedado em: [link do deploy](https://flugo-collaborators.vercel.app/)
 
 ---
 
