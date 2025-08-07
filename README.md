@@ -6,7 +6,7 @@ Formulário multi-step para cadastro de colaboradores, com persistência em Fire
 
 1. Clone o repositório:
    ```bash
-   git clone https://github.com/seu-usuario/flugo-colaboradores.git
+   git clone https://github.com/seu-usuario/flugo-collaborators.git
    cd flugo-colaboradores
    ```
 
