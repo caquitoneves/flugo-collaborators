@@ -24,7 +24,9 @@ export const Sidebar = () => (
     }}
   >
     <Box sx={{ px: 3 }}>
-      <img src="/logo-flugo.png" alt="Flugo" style={{ width: 112 }} />
+      <a href="/" style={{ textDecoration: "none", display: "inline-block" }}>
+        <img src="/logo-flugo.png" alt="Flugo" style={{ width: 112 }} />
+      </a>
     </Box>
     <List sx={{ px: 1 }}>
       <ListItemButton

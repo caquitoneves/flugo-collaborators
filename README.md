@@ -7,7 +7,6 @@ Formulário multi-step para cadastro de colaboradores, com persistência em Fire
 1. Clone o repositório:
    ```bash
    git clone https://github.com/seu-usuario/flugo-collaborators.git
-   cd flugo-colaboradores
    ```
 
 2. Instale as dependências:
@@ -15,19 +14,20 @@ Formulário multi-step para cadastro de colaboradores, com persistência em Fire
    npm install
    ```
 
-3. Crie o arquivo `.env.local` (se necessário para suas credenciais do Firebase).
-
-4. Inicie o servidor de desenvolvimento:
+3. Inicie o servidor de desenvolvimento:
    ```bash
    npm start
    ```
 
-5. Acesse [http://localhost:3000](http://localhost:3000) no navegador.
+4. Acesse [http://localhost:3000](http://localhost:3000) no navegador.
 
 ## Configuração do Firebase
 
-O projeto já está integrado com Firebase Firestore.  
-Se quiser rodar com suas próprias credenciais, edite o arquivo `src/firebase/config.ts` com suas informações do Firebase.
+- As credenciais do Firebase estão definidas diretamente no arquivo `src/firebase/config.ts`.
+
+- O Firestore está configurado para armazenar os colaboradores no collection `collaborators`.
+
+- O app valida e previne duplicidade de colaboradores pelo campo e-mail.
 
 ## Deploy
 
@@ -35,10 +35,50 @@ O projeto está hospedado em: [link do deploy](https://flugo-collaborators.verce
 
 ---
 
-## Validações e Feedback
+## Funcionalidades
 
-- Todos os campos são obrigatórios.
-- Validações de e-mail e campos vazios.
-- Feedback visual para sucesso/erro e campos inválidos.
+- Formulário dividido em etapas para melhor experiência do usuário (multi-step).
+
+- Validação de campos obrigatórios em cada etapa.
+
+- Validação de formato de e-mail.
+
+- Feedback visual em tempo real com mensagens de erro e sucesso.
+
+- Persistência dos dados no Firebase Firestore.
+
+- Evita cadastro duplicado pelo e-mail.
+
+- Interface responsiva e estilizada com Material UI.
 
 ---
+
+## Estrutura do projeto
+
+- `src/components` - Componentes React reutilizáveis (Steps, Listagem, Layout).
+
+- `src/firebase` - Configuração do Firebase e funções para CRUD.
+
+- `src/types` - Tipagens TypeScript para Colaboradores e outros.
+
+- `src/pages` - Páginas principais (ex: Home).
+
+---
+
+## Como usar
+
+- Clique em Novo Colaborador para abrir o formulário.
+
+- Preencha as informações básicas (nome, e-mail e status).
+
+- Avance para as informações profissionais (departamento).
+
+- Envie para salvar no Firebase.
+
+- Visualize os colaboradores cadastrados na lista.
+
+---
+
+## Contato
+Caio Vinícius Neves Silva
+[LinkedIn](https://www.linkedin.com/in/caconeves/) | caco_neves@outlook.com

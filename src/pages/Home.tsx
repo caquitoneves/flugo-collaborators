@@ -5,26 +5,75 @@ import { Navbar } from "../components/Navbar";
 import { CollaboratorList } from "../components/CollaboratorList";
 import { Step1 } from "../components/MultiStepForm/Step1";
 import { Step2 } from "../components/MultiStepForm/Step2";
-import { addCollaborator, getCollaborators, existsCollaboratorEmail } from "../firebase/collaborators";
+import {
+  addCollaborator,
+  existsCollaboratorEmail,
+} from "../firebase/collaborators";
 import { Collaborator } from "../types";
+
+import {
+  collection,
+  getDocs,
+  query,
+  orderBy,
+  limit,
+  startAfter,
+} from "firebase/firestore";
+import { db } from "../firebase/config";
 
 export default function Home() {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
-  const [formStep, setFormStep] = useState<1 | 2 | null>(null);
-  const [formData, setFormData] = useState<Omit<Collaborator, "id"> | null>(null);
+  const [lastDoc, setLastDoc] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [feedback, setFeedback] = useState<{ open: boolean; type: "success" | "error"; message: string }>({
+  const [hasMore, setHasMore] = useState(true);
+
+  const [formStep, setFormStep] = useState<1 | 2 | null>(null);
+  const [formData, setFormData] = useState<Omit<Collaborator, "id"> | null>(
+    null
+  );
+
+  const [feedback, setFeedback] = useState<{
+    open: boolean;
+    type: "success" | "error";
+    message: string;
+  }>({
     open: false,
     type: "success",
     message: "",
   });
 
-  // Carrega colaboradores do Firebase ao iniciar
+  // Função para buscar colaboradores, loadMore indica se acumula ou substitui
+  const fetchCollaborators = async (loadMore = false) => {
+    setLoading(true);
+    const ref = collection(db, "collaborators");
+    let q = query(ref, orderBy("name"), limit(10));
+    if (loadMore && lastDoc) {
+      q = query(ref, orderBy("name"), startAfter(lastDoc), limit(10));
+    }
+
+    try {
+      const snapshot = await getDocs(q);
+      const newData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as Omit<Collaborator, "id">),
+      }));
+
+      setCollaborators((prev) => (loadMore ? [...prev, ...newData] : newData));
+      setLastDoc(snapshot.docs[snapshot.docs.length - 1]);
+      setHasMore(snapshot.docs.length === 10);
+    } catch (error) {
+      setFeedback({
+        open: true,
+        type: "error",
+        message: "Erro ao carregar colaboradores.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    (async () => {
-      const data = await getCollaborators();
-      setCollaborators(data);
-    })();
+    fetchCollaborators(false);
   }, []);
 
   const handleAdd = () => setFormStep(1);
@@ -38,12 +87,16 @@ export default function Home() {
   };
 
   // Avança do Step1 guardando dados
-  const handleNextStep1 = (data: { name: string; email: string; active: boolean }) => {
+  const handleNextStep1 = (data: {
+    name: string;
+    email: string;
+    active: boolean;
+  }) => {
     setFormData({
       name: data.name,
       email: data.email,
       status: data.active ? "ativo" : "inativo",
-      avatarUrl: "", 
+      avatarUrl: "",
       department: "",
     });
     setFormStep(2);
@@ -71,6 +124,7 @@ export default function Home() {
         department,
       };
       await addCollaborator(collaboratorToSave as Collaborator);
+
       setFeedback({
         open: true,
         type: "success",
@@ -78,9 +132,9 @@ export default function Home() {
       });
       setFormStep(null);
       setFormData(null);
-      // Atualiza lista após cadastro
-      const updated = await getCollaborators();
-      setCollaborators(updated);
+
+      // Atualiza lista após cadastro (substitui, sem duplicação)
+      await fetchCollaborators(false);
     } catch (e) {
       setFeedback({
         open: true,
@@ -92,32 +146,48 @@ export default function Home() {
     }
   };
 
+  // Função para carregar mais colaboradores (paginação)
+  const handleLoadMore = () => {
+    if (!loading && hasMore) fetchCollaborators(true);
+  };
+
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "100vh",
+        bgcolor: "background.default",
+      }}
+    >
       <Sidebar />
-      <Box sx={{ flex: 1, position: "relative", minHeight: "100vh", bgcolor: "background.default" }}>
+      <Box
+        sx={{
+          flex: 1,
+          position: "relative",
+          minHeight: "100vh",
+          bgcolor: "background.default",
+        }}
+      >
         <Navbar />
         {formStep === null ? (
-          <CollaboratorList collaborators={collaborators} onAdd={handleAdd} />
+          <CollaboratorList
+            collaborators={collaborators}
+            onAdd={handleAdd}
+            onLoadMore={handleLoadMore}
+            loading={loading}
+            hasMore={hasMore}
+          />
         ) : formStep === 1 ? (
-          <Step1
-            next={handleNextStep1}
-            back={handleBack}
-            loading={loading}
-          />
+          <Step1 next={handleNextStep1} back={handleBack} loading={loading} />
         ) : (
-          <Step2
-            next={handleFinish}
-            back={handleBack}
-            loading={loading}
-          />
+          <Step2 next={handleFinish} back={handleBack} loading={loading} />
         )}
 
         {/* Feedback visual */}
         <Snackbar
           open={feedback.open}
           autoHideDuration={4000}
-          onClose={() => setFeedback(f => ({ ...f, open: false }))}
+          onClose={() => setFeedback((f) => ({ ...f, open: false }))}
           anchorOrigin={{ vertical: "top", horizontal: "center" }}
         >
           <Alert severity={feedback.type}>{feedback.message}</Alert>
