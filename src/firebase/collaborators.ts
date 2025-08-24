@@ -1,5 +1,15 @@
 import { db } from "./config";
-import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  doc,
+  deleteDoc,
+  writeBatch,
+  updateDoc,
+} from "firebase/firestore";
 import { Collaborator } from "../types";
 
 const COLLABORATORS_COLLECTION = "collaborators";
@@ -23,4 +33,23 @@ export const existsCollaboratorEmail = async (email: string): Promise<boolean> =
   );
   const snapshot = await getDocs(q);
   return !snapshot.empty;
+};
+
+// Exclusão individual
+export const deleteCollaborator = async (id: string) => {
+  await deleteDoc(doc(db, COLLABORATORS_COLLECTION, id));
+};
+
+// Exclusão em massa
+export const deleteCollaboratorsBatch = async (ids: string[]) => {
+  const batch = writeBatch(db);
+  ids.forEach((id) => {
+    batch.delete(doc(db, COLLABORATORS_COLLECTION, id));
+  });
+  await batch.commit();
+};
+
+// Edição de colaborador
+export const updateCollaborator = async (id: string, data: Partial<Collaborator>) => {
+  await updateDoc(doc(db, COLLABORATORS_COLLECTION, id), data);
 };

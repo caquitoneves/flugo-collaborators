@@ -10,10 +10,13 @@ import {
 import Person2RoundedIcon from "@mui/icons-material/Person2Rounded";
 import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
+import { logout } from "../firebase/auth";
+import { useNavigate } from "react-router-dom";
 
 export const Navbar = () => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
+  const navigate = useNavigate();
 
   const handleOpenMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -21,6 +24,12 @@ export const Navbar = () => {
 
   const handleCloseMenu = () => {
     setAnchorEl(null);
+  };
+
+  const handleLogout = async () => {
+    handleCloseMenu();
+    await logout();
+    navigate("/login");
   };
 
   return (
@@ -73,7 +82,10 @@ export const Navbar = () => {
           <SettingsIcon fontSize="small" sx={{ mr: 1 }} />
           Configurações
         </MenuItem>
-        <MenuItem sx={{ fontSize: "0.9rem", color: "#A3A3A3" }}>
+        <MenuItem
+          sx={{ fontSize: "0.9rem", color: "#A3A3A3" }}
+          onClick={handleLogout}
+        >
           <LogoutIcon fontSize="small" sx={{ mr: 1 }} />
           Sair
         </MenuItem>

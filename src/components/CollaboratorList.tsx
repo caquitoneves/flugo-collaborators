@@ -1,42 +1,132 @@
 import {
-  Box, Table, TableHead, TableRow, TableCell, TableBody, Chip, Avatar, Button, Paper, Typography
+  Box, Table, TableHead, TableRow, TableCell, TableBody, Chip, Avatar, Button, Paper, Typography, IconButton, Checkbox, TextField
 } from "@mui/material";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 import { Collaborator } from "../types";
+import { useState, useMemo } from "react";
 
 type Props = {
   collaborators: Collaborator[];
   onAdd: () => void;
+  onEditModal: (collaborator: Collaborator) => void;
+  onDelete: (id: string) => void;
+  onDeleteSelected: (ids: string[]) => void;
   onLoadMore: () => void;
   loading: boolean;
   hasMore: boolean;
 };
 
-export const CollaboratorList = ({ collaborators, onAdd, onLoadMore, loading, hasMore }: Props) => {
+export const CollaboratorList = ({
+  collaborators,
+  onAdd,
+  onEditModal,
+  onDelete,
+  onDeleteSelected,
+  onLoadMore,
+  loading,
+  hasMore,
+}: Props) => {
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [filterName, setFilterName] = useState("");
+  const [filterEmail, setFilterEmail] = useState("");
+  const [filterDepartment, setFilterDepartment] = useState("");
+
+  const handleSelect = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((sid) => sid !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.checked) {
+      setSelectedIds(collaborators.map((c) => c.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const allSelected = collaborators.length > 0 && selectedIds.length === collaborators.length;
+
+  // Filtragem dos colaboradores
+  const filteredCollaborators = useMemo(() => {
+    return collaborators.filter((colab) => {
+      const nameMatch = colab.name.toLowerCase().includes(filterName.toLowerCase());
+      const emailMatch = colab.email.toLowerCase().includes(filterEmail.toLowerCase());
+      const deptMatch = colab.department.toLowerCase().includes(filterDepartment.toLowerCase());
+      return nameMatch && emailMatch && deptMatch;
+    });
+  }, [collaborators, filterName, filterEmail, filterDepartment]);
+
   return (
     <Box sx={{ width: "100%", p: 2, mt: 3 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4} px={4}>
         <Typography variant="h5" sx={{ fontWeight: 600, color: "#222" }}>
           Colaboradores
         </Typography>
-        <Button
-          variant="contained"
-          sx={{
-            bgcolor: "#22C55E",
-            color: "#fff",
-            fontWeight: 600,
-            borderRadius: 0.5,
-            boxShadow: "none",
-            textTransform: "none",
-            px: 1.5,
-            py: 1.2,
-            fontSize: 16,
-            "&:hover": { bgcolor: "#16A34A" },
-          }}
-          onClick={onAdd}
-        >
-          Novo Colaborador
-        </Button>
+        <Box display="flex" gap={2}>
+          <Button
+            variant="contained"
+            sx={{
+              bgcolor: "#22C55E",
+              color: "#fff",
+              fontWeight: 600,
+              borderRadius: 0.5,
+              boxShadow: "none",
+              textTransform: "none",
+              px: 1.5,
+              py: 1.2,
+              fontSize: 16,
+              "&:hover": { bgcolor: "#16A34A" },
+            }}
+            onClick={onAdd}
+          >
+            Novo Colaborador
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={selectedIds.length === 0}
+            onClick={() => onDeleteSelected(selectedIds)}
+            sx={{
+              fontWeight: 600,
+              borderRadius: 0.5,
+              boxShadow: "none",
+              textTransform: "none",
+              px: 1.5,
+              py: 1.2,
+              fontSize: 16,
+            }}
+          >
+            Excluir Selecionados
+          </Button>
+        </Box>
+      </Box>
+
+      {/* Filtros */}
+      <Box display="flex" gap={2} mb={2} px={4}>
+        <TextField
+          label="Filtrar por nome"
+          variant="outlined"
+          size="small"
+          value={filterName}
+          onChange={e => setFilterName(e.target.value)}
+        />
+        <TextField
+          label="Filtrar por email"
+          variant="outlined"
+          size="small"
+          value={filterEmail}
+          onChange={e => setFilterEmail(e.target.value)}
+        />
+        <TextField
+          label="Filtrar por departamento"
+          variant="outlined"
+          size="small"
+          value={filterDepartment}
+          onChange={e => setFilterDepartment(e.target.value)}
+        />
       </Box>
 
       <Box sx={{ px: 4 }}>
@@ -51,6 +141,13 @@ export const CollaboratorList = ({ collaborators, onAdd, onLoadMore, loading, ha
           <Table sx={{ minWidth: 650, bgcolor: "#F9FAFB" }}>
             <TableHead>
               <TableRow sx={{ bgcolor: "#F9FAFB", height: 56 }}>
+                <TableCell padding="checkbox">
+                  <Checkbox
+                    checked={allSelected}
+                    onChange={handleSelectAll}
+                    color="primary"
+                  />
+                </TableCell>
                 <TableCell sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}>
                   Nome <ArrowDownwardIcon sx={{ fontSize: 16, verticalAlign: "middle", ml: 0.5, color: "#6b7a8a" }} />
                 </TableCell>
@@ -63,10 +160,13 @@ export const CollaboratorList = ({ collaborators, onAdd, onLoadMore, loading, ha
                 <TableCell align="right" sx={{ fontWeight: 600, color: "#768591", fontSize: 14, pr: 2 }}>
                   Status <ArrowDownwardIcon sx={{ fontSize: 14, verticalAlign: "middle", ml: 0.5, color: "#6b7a8a" }} />
                 </TableCell>
+                <TableCell align="center" sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}>
+                  Ações
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {collaborators.map((colab) => (
+              {filteredCollaborators.map((colab) => (
                 <TableRow
                   key={colab.id}
                   sx={{
@@ -75,6 +175,13 @@ export const CollaboratorList = ({ collaborators, onAdd, onLoadMore, loading, ha
                     "&:not(:last-child)": { borderBottom: "1px solid #ECECEC" },
                   }}
                 >
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      checked={selectedIds.includes(colab.id)}
+                      onChange={() => handleSelect(colab.id)}
+                      color="primary"
+                    />
+                  </TableCell>
                   <TableCell>
                     <Box display="flex" alignItems="center" gap={1}>
                       <Avatar
@@ -103,6 +210,14 @@ export const CollaboratorList = ({ collaborators, onAdd, onLoadMore, loading, ha
                         mr: 2,
                       }}
                     />
+                  </TableCell>
+                  <TableCell align="center">
+                    <IconButton color="primary" onClick={() => onEditModal(colab)} title="Editar colaborador">
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton color="error" onClick={() => onDelete(colab.id)}>
+                      <DeleteIcon />
+                    </IconButton>
                   </TableCell>
                 </TableRow>
               ))}

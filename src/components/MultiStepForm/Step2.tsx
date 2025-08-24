@@ -1,100 +1,92 @@
 import {
   Box,
   Typography,
+  TextField,
   Button,
   LinearProgress,
   MenuItem,
-  Select,
   CircularProgress,
   Snackbar,
   Alert,
 } from "@mui/material";
+import { useState, useEffect } from "react";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import { useState } from "react";
+import { Collaborator } from "../../types";
 
-function VerticalStepper() {
-  return (
-    <Box sx={{
-      width: 170,
-      mr: 8,
-      pt: 2,
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "flex-start"
-    }}>
-      <Box sx={{ display: "flex", alignItems: "center", mb: "24px" }}>
-        <CheckCircleIcon sx={{
-          width: 24,
-          height: 24,
-          color: "#22C55E",
-          mr: "10px",
-        }} />
-        <Typography sx={{ fontWeight: 600, fontSize: "14px", color: "#22C55E" }}>
-          Infos Básicas
-        </Typography>
-      </Box>
-      <Box
-        sx={{
-          width: "1.5px",
-          height: "100px",
-          bgcolor: "#E5E7EB",
-          ml: "11px",
-          mt: "-20px",
-          mb: "8px",
-        }}
-      />
-      <Box sx={{ display: "flex", alignItems: "center", mb: "32px" }}>
-        <Box
-          sx={{
-            width: 24,
-            height: 24,
-            bgcolor: "#22C55E",
-            color: "#fff",
-            fontWeight: 700,
-            fontSize: "13px",
-            borderRadius: "50%",
-            border: "2px solid #22C55E",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            mr: "10px",
-          }}
-        >
-          2
-        </Box>
-        <Typography sx={{ fontWeight: 600, fontSize: "14px", color: "#22C55E" }}>
-          Infos Profissionais
-        </Typography>
-      </Box>
-    </Box>
-  );
-}
+type Step2Props = {
+  next: (data: {
+    department: string;
+    role?: string;
+    admissionDate?: string;
+    hierarchy?: string;
+    manager?: string;
+    salary?: string;
+  }) => void;
+  back: () => void;
+  loading?: boolean;
+  editData?: Collaborator | null;
+  collaborators: Collaborator[]; // Adicione esta prop!
+};
+
+const hierarchyLevels = [
+  "Júnior",
+  "Pleno",
+  "Sênior",
+  "Gestor"
+];
 
 export function Step2({
   next,
   back,
   loading = false,
-}: {
-  next: (department: string) => Promise<unknown> | void;
-  back: () => void;
-  loading?: boolean;
-}) {
-  const [department, setDepartment] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [successSnackbar, setSuccessSnackbar] = useState(false);
+  editData = null,
+  collaborators = [],
+}: Step2Props) {
+  const [department, setDepartment] = useState(editData?.department || "");
+  const [role, setRole] = useState(editData?.role || "");
+  const [admissionDate, setAdmissionDate] = useState(editData?.admissionDate || "");
+  const [hierarchy, setHierarchy] = useState(editData?.hierarchy || "");
+  const [manager, setManager] = useState(editData?.manager || "");
+  const [salary, setSalary] = useState(editData?.salary || "");
+  const [error, setError] = useState<{ department?: string }>({});
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [snackbarMsg, setSnackbarMsg] = useState("");
 
-  const onFinish = async () => {
-    if (!department) {
-      setError("Selecione um departamento.");
-      return;
+  useEffect(() => {
+    if (editData) {
+      setDepartment(editData.department || "");
+      setRole(editData.role || "");
+      setAdmissionDate(editData.admissionDate || "");
+      setHierarchy(editData.hierarchy || "");
+      setManager(editData.manager || "");
+      setSalary(editData.salary || "");
     }
-    setError(null);
+  }, [editData]);
 
-    // next pode ser async (cadastra colaborador)
-    const result = await next(department);
-    // Se next for async, pode retornar sucesso/erro
-    setSuccessSnackbar(true);
+  const validate = () => {
+    let valid = true, err: typeof error = {};
+    if (!department.trim()) {
+      valid = false;
+      err.department = "Departamento é obrigatório.";
+    }
+    setError(err);
+    return valid;
+  };
+
+  const onNext = () => {
+    if (validate()) {
+      next({
+        department,
+        role,
+        admissionDate,
+        hierarchy,
+        manager,
+        salary,
+      });
+    } else {
+      setSnackbarMsg("Preencha todos os campos obrigatórios.");
+      setOpenSnackbar(true);
+    }
   };
 
   return (
@@ -103,10 +95,12 @@ export function Step2({
       <Box sx={{ px: "64px", pt: "40px", display: "flex", alignItems: "center", mb: "8px" }}>
         <Typography sx={{ color: "#565c68ff", fontSize: "15px", fontWeight: 500 }}>Colaboradores</Typography>
         <ChevronRightIcon sx={{ color: "#A3A3A3", fontSize: 16, ml: 0.5 }} />
-        <Typography sx={{ color: "#A3A3A3", fontSize: "15px", fontWeight: 500 }}>Cadastrar Colaborador</Typography>
+        <Typography sx={{ color: "#A3A3A3", fontSize: "15px", fontWeight: 500 }}>
+          {editData ? "Editar Colaborador" : "Cadastrar Colaborador"}
+        </Typography>
       </Box>
 
-      {/* Progress bar - 50% */}
+      {/* Progress bar */}
       <Box sx={{ px: "64px", position: "relative", mb: "48px" }}>
         <LinearProgress
           variant="determinate"
@@ -115,7 +109,7 @@ export function Step2({
             height: "3px",
             borderRadius: "2px",
             bgcolor: "#c3f5d9ff",
-            "& .MuiLinearProgress-bar": { bgcolor: "#22C55E" },
+            "& .MuiLinearProgress-bar": { bgcolor: "#2fe791ff" },
             mt: "20px",
           }}
         />
@@ -144,8 +138,67 @@ export function Step2({
           minHeight: "480px",
         }}
       >
-        <VerticalStepper />
+        {/* Stepper lateral pode ser igual ao Step1 */}
+        <Box sx={{ width: 170, mr: 8, pt: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center", mb: "24px" }}>
+            <Box
+              sx={{
+                width: 24,
+                height: 24,
+                bgcolor: "#F3F4F6",
+                color: "#A3A3A3",
+                fontWeight: 700,
+                fontSize: "13px",
+                borderRadius: "50%",
+                border: "2px solid #F3F4F6",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                mr: "10px",
+              }}
+            >
+              1
+            </Box>
+            <Typography sx={{ fontWeight: 600, fontSize: "14px", color: "#A3A3A3" }}>
+              Infos Básicas
+            </Typography>
+          </Box>
+          <Box
+            sx={{
+              width: "1.5px",
+              height: "100px",
+              bgcolor: "#E5E7EB",
+              ml: "11px",
+              mt: "-20px",
+              mb: "8px",
+            }}
+          />
+          <Box sx={{ display: "flex", alignItems: "center", mb: "32px" }}>
+            <Box
+              sx={{
+                width: 24,
+                height: 24,
+                bgcolor: "#22C55E",
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: "13px",
+                borderRadius: "50%",
+                border: "2px solid #DEF7EC",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                mr: "10px",
+              }}
+            >
+              2
+            </Box>
+            <Typography sx={{ fontWeight: 600, fontSize: "14px", color: "#22C55E" }}>
+              Infos Profissionais
+            </Typography>
+          </Box>
+        </Box>
 
+        {/* Formulário */}
         <Box
           sx={{
             flex: 1,
@@ -174,46 +227,75 @@ export function Step2({
               gap: "18px",
             }}
           >
-            <Select
-              displayEmpty
+            <TextField
+              label="Departamento"
+              variant="outlined"
               value={department}
               onChange={e => setDepartment(e.target.value)}
               fullWidth
-              sx={{
-                bgcolor: "#fff",
-                height: "54px",
-                borderRadius: "9px",
-                fontSize: "16px",
-                "& .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "#E5E7EB",
-                  borderWidth: "2px",
-                },
-                "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "#22C55E",
-                  borderWidth: "2px",
-                },
-                px: "16px",
-              }}
-              renderValue={selected => selected ? selected : "Selecione um departamento"}
-              error={!!error}
+              error={!!error.department}
+              helperText={error.department}
+              required
+            />
+            <TextField
+              label="Cargo"
+              variant="outlined"
+              value={role}
+              onChange={e => setRole(e.target.value)}
+              fullWidth
+            />
+            <TextField
+              label="Data de Admissão"
+              variant="outlined"
+              type="date"
+              value={admissionDate}
+              onChange={e => setAdmissionDate(e.target.value)}
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+            />
+            <TextField
+              label="Nível Hierárquico"
+              variant="outlined"
+              select
+              value={hierarchy}
+              onChange={e => setHierarchy(e.target.value)}
+              fullWidth
             >
-              <MenuItem value="" disabled>
-                Selecione um departamento
-              </MenuItem>
-              <MenuItem value="Financeiro">Financeiro</MenuItem>
-              <MenuItem value="RH">RH</MenuItem>
-              <MenuItem value="TI">TI</MenuItem>
-              <MenuItem value="Operações">Operações</MenuItem>
-            </Select>
-            {error && (
-              <Typography sx={{ color: "error.main", fontSize: "13px", mt: 1 }}>
-                {error}
-              </Typography>
-            )}
+              {hierarchyLevels.map(level => (
+                <MenuItem key={level} value={level}>{level}</MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              label="Gestor Responsável"
+              variant="outlined"
+              select
+              value={manager}
+              onChange={e => setManager(e.target.value)}
+              fullWidth
+              helperText="Selecione o colaborador gestor responsável"
+              required
+            >
+              {collaborators
+                .filter(c => c.hierarchy === "Gestor")
+                .map(c => (
+                  <MenuItem key={c.id} value={c.id}>
+                    {c.name}
+                  </MenuItem>
+                ))}
+            </TextField>
+            <TextField
+              label="Salário Base"
+              variant="outlined"
+              type="number"
+              value={salary}
+              onChange={e => setSalary(e.target.value)}
+              fullWidth
+            />
           </Box>
         </Box>
       </Box>
 
+      {/* Container separado para botões */}
       <Box
         sx={{
           px: "64px",
@@ -227,7 +309,7 @@ export function Step2({
         <Button
           variant="text"
           sx={{
-            color: "#6b7989",
+            color: "#A3A3A3",
             fontWeight: 600,
             fontSize: "15px",
             textTransform: "none",
@@ -252,19 +334,20 @@ export function Step2({
             boxShadow: "none",
             "&:hover": { bgcolor: "#16A34A" },
           }}
-          onClick={onFinish}
+          onClick={onNext}
           disabled={loading}
         >
-          {loading ? <CircularProgress size={24} sx={{ color: "#fff" }} /> : "Concluir"}
+          {loading ? <CircularProgress size={24} sx={{ color: "#fff" }} /> : editData ? "Salvar" : "Finalizar"}
         </Button>
       </Box>
+      {/* Snackbar para feedback de erro */}
       <Snackbar
-        open={successSnackbar}
+        open={openSnackbar}
         autoHideDuration={3000}
-        onClose={() => setSuccessSnackbar(false)}
+        onClose={() => setOpenSnackbar(false)}
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
-        <Alert severity="success">Colaborador cadastrado com sucesso!</Alert>
+        <Alert severity="error">{snackbarMsg}</Alert>
       </Snackbar>
     </Box>
   );

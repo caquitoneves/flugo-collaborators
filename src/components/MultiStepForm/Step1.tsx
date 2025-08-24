@@ -10,10 +10,10 @@ import {
   Alert,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import { Collaborator } from "../../types";
 
-// Switch customizado igual ao mockup
 const FlugoSwitch = styled(Switch)(({ theme }) => ({
   width: 40,
   height: 24,
@@ -117,21 +117,33 @@ function VerticalStepper() {
   );
 }
 
+type Step1Props = {
+  next: (data: { name: string; email: string; active: boolean }) => void;
+  back: () => void;
+  loading?: boolean;
+  editData?: Collaborator | null;
+};
+
 export function Step1({
   next,
   back,
   loading = false,
-}: {
-  next: (data: { name: string; email: string; active: boolean }) => void;
-  back: () => void;
-  loading?: boolean;
-}) {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [active, setActive] = useState(true);
+  editData = null,
+}: Step1Props) {
+  const [name, setName] = useState(editData?.name || "");
+  const [email, setEmail] = useState(editData?.email || "");
+  const [active, setActive] = useState(editData ? editData.status === "ativo" : true);
   const [error, setError] = useState<{ name?: string; email?: string }>({});
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMsg, setSnackbarMsg] = useState("");
+
+  useEffect(() => {
+    if (editData) {
+      setName(editData.name || "");
+      setEmail(editData.email || "");
+      setActive(editData.status === "ativo");
+    }
+  }, [editData]);
 
   const validate = () => {
     let valid = true, err: typeof error = {};
@@ -165,7 +177,9 @@ export function Step1({
       <Box sx={{ px: "64px", pt: "40px", display: "flex", alignItems: "center", mb: "8px" }}>
         <Typography sx={{ color: "#565c68ff", fontSize: "15px", fontWeight: 500 }}>Colaboradores</Typography>
         <ChevronRightIcon sx={{ color: "#A3A3A3", fontSize: 16, ml: 0.5 }} />
-        <Typography sx={{ color: "#A3A3A3", fontSize: "15px", fontWeight: 500 }}>Cadastrar Colaborador</Typography>
+        <Typography sx={{ color: "#A3A3A3", fontSize: "15px", fontWeight: 500 }}>
+          {editData ? "Editar Colaborador" : "Cadastrar Colaborador"}
+        </Typography>
       </Box>
 
       {/* Progress bar */}
@@ -309,6 +323,7 @@ export function Step1({
                 sx: { fontSize: "15px", fontWeight: 500, height: "48px", paddingY: "0px" },
               }}
               InputLabelProps={{ sx: { fontSize: "13px" } }}
+              disabled={!!editData}
             />
           </Box>
           <Box sx={{ width: "100%", display: "flex", alignItems: "center", mb: "60px", mt: "0px" }}>
@@ -366,7 +381,7 @@ export function Step1({
           onClick={onNext}
           disabled={loading}
         >
-          {loading ? <CircularProgress size={24} sx={{ color: "#fff" }} /> : "Próximo"}
+          {loading ? <CircularProgress size={24} sx={{ color: "#fff" }} /> : editData ? "Salvar" : "Próximo"}
         </Button>
       </Box>
       {/* Snackbar para feedback de erro */}

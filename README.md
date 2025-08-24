@@ -1,6 +1,6 @@
 # Flugo Colaboradores
 
-Formulário multi-step para cadastro de colaboradores, com persistência em Firebase e interface Material UI.
+Sistema de gestão de colaboradores e departamentos, com autenticação via Firebase, interface Material UI e persistência em Firestore.
 
 ## Rodando localmente
 
@@ -23,11 +23,9 @@ Formulário multi-step para cadastro de colaboradores, com persistência em Fire
 
 ## Configuração do Firebase
 
-- As credenciais do Firebase estão definidas diretamente no arquivo `src/firebase/config.ts`.
-
-- O Firestore está configurado para armazenar os colaboradores no collection `collaborators`.
-
-- O app valida e previne duplicidade de colaboradores pelo campo e-mail.
+- As credenciais do Firebase estão definidas em `src/firebase/config.ts`.
+- O Firestore armazena colaboradores no collection `collaborators` e departamentos em `departments`.
+- Autenticação via Firebase Authentication (JWT) protege as rotas do sistema.
 
 ## Deploy
 
@@ -37,48 +35,40 @@ O projeto está hospedado em: [link do deploy](https://flugo-collaborators.verce
 
 ## Funcionalidades
 
-- Formulário dividido em etapas para melhor experiência do usuário (multi-step).
-
-- Validação de campos obrigatórios em cada etapa.
-
-- Validação de formato de e-mail.
-
-- Feedback visual em tempo real com mensagens de erro e sucesso.
-
-- Persistência dos dados no Firebase Firestore.
-
-- Evita cadastro duplicado pelo e-mail.
-
+- Autenticação de usuários (login/logout) e proteção de rotas.
+- Página customizada de 404 para rotas inexistentes.
+- Cadastro, edição, exclusão e listagem de colaboradores.
+- Cadastro, edição, exclusão e listagem de departamentos.
+- Transferência de colaborador entre departamentos (um colaborador só pode pertencer a um departamento).
+- Seleção de gestor responsável (apenas colaboradores com nível "Gestor").
+- Exclusão individual e em massa de colaboradores.
+- Filtros de busca por nome, e-mail e departamento.
+- Validação de campos obrigatórios e feedback visual.
 - Interface responsiva e estilizada com Material UI.
 
 ---
 
 ## Estrutura do projeto
 
-- `src/components` - Componentes React reutilizáveis (Steps, Listagem, Layout).
-
+- `src/components` - Componentes React reutilizáveis (Steps, Listagem, Modais, Layout).
 - `src/firebase` - Configuração do Firebase e funções para CRUD.
-
-- `src/types` - Tipagens TypeScript para Colaboradores e outros.
-
-- `src/pages` - Páginas principais (ex: Home).
+- `src/types` - Tipagens TypeScript para Colaboradores e Departamentos.
+- `src/pages` - Páginas principais (Colaboradores, Departamentos, Login, NotFound).
+- `src/routes` - Proteção de rotas autenticadas.
 
 ---
 
 ## Como usar
 
-- Clique em Novo Colaborador para abrir o formulário.
-
-- Preencha as informações básicas (nome, e-mail e status).
-
-- Avance para as informações profissionais (departamento).
-
-- Envie para salvar no Firebase.
-
-- Visualize os colaboradores cadastrados na lista.
+- Faça login para acessar o sistema.
+- Navegue entre colaboradores e departamentos pela sidebar.
+- Cadastre, edite ou exclua colaboradores e departamentos.
+- Ao cadastrar/editar departamento, selecione o gestor responsável (apenas nível "Gestor").
+- Transfira colaboradores entre departamentos sem duplicidade.
+- Utilize os filtros para buscar colaboradores ou departamentos.
 
 ---
 
 ## Contato
-Caio Vinícius Neves Silva
+Caio Vinícius Neves Silva  
 [LinkedIn](https://www.linkedin.com/in/caconeves/) | caco_neves@outlook.com
