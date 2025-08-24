@@ -33,6 +33,13 @@ O projeto está hospedado em: [link do deploy](https://flugo-collaborators.verce
 
 ---
 
+## Usuário de teste
+
+Para acessar o sistema, utilize o login de teste abaixo:
+
+- **E-mail:** teste@flugo.com.br
+- **Senha:** Teste@123
+
 ## Funcionalidades
 
 - Autenticação de usuários (login/logout) e proteção de rotas.
