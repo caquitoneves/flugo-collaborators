@@ -33,7 +33,9 @@ export default function CollaboratorsPage() {
   const [hasMore, setHasMore] = useState(true);
 
   const [formStep, setFormStep] = useState<1 | 2 | null>(null);
-  const [formData, setFormData] = useState<Omit<Collaborator, "id"> | null>(null);
+  const [formData, setFormData] = useState<Omit<Collaborator, "id"> | null>(
+    null
+  );
 
   const [feedback, setFeedback] = useState<{
     open: boolean;
@@ -48,10 +50,13 @@ export default function CollaboratorsPage() {
   // Modal de edição rápida
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editModalLoading, setEditModalLoading] = useState(false);
-  const [selectedCollaborator, setSelectedCollaborator] = useState<Collaborator | null>(null);
+  const [selectedCollaborator, setSelectedCollaborator] =
+    useState<Collaborator | null>(null);
 
   // Multi-step cadastro
-  const [editCollaborator, setEditCollaborator] = useState<Collaborator | null>(null);
+  const [editCollaborator, setEditCollaborator] = useState<Collaborator | null>(
+    null
+  );
 
   // Buscar colaboradores
   const fetchCollaborators = async (loadMore = false) => {
@@ -264,9 +269,22 @@ export default function CollaboratorsPage() {
   };
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "100vh",
+        bgcolor: "background.default",
+      }}
+    >
       <Sidebar />
-      <Box sx={{ flex: 1, position: "relative", minHeight: "100vh", bgcolor: "background.default" }}>
+      <Box
+        sx={{
+          flex: 1,
+          position: "relative",
+          minHeight: "100vh",
+          bgcolor: "background.default",
+        }}
+      >
         <Navbar />
         {formStep === null ? (
           <CollaboratorList
@@ -300,10 +318,11 @@ export default function CollaboratorsPage() {
         <EditCollaboratorModal
           open={editModalOpen}
           collaborator={selectedCollaborator}
+          collaborators={collaborators}
           loading={editModalLoading}
           onClose={handleEditModalClose}
           onSave={handleEditModalSave}
-        />
+        />  
 
         {/* Feedback visual */}
         <Snackbar

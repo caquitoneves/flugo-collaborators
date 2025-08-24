@@ -18,6 +18,7 @@ const hierarchyLevels = ["Júnior", "Pleno", "Sênior", "Gestor"];
 type Props = {
   open: boolean;
   collaborator: Collaborator | null;
+  collaborators: Collaborator[];
   loading: boolean;
   onClose: () => void;
   onSave: (data: Partial<Collaborator>) => void;
@@ -26,6 +27,7 @@ type Props = {
 export function EditCollaboratorModal({
   open,
   collaborator,
+  collaborators,
   loading,
   onClose,
   onSave,
@@ -108,12 +110,22 @@ export function EditCollaboratorModal({
             ))}
           </TextField>
           <TextField
-            label="Gestor Responsável (ID)"
+            label="Gestor Responsável"
+            select
             value={form.manager || ""}
             onChange={handleChange("manager")}
             fullWidth
             margin="normal"
-          />
+            helperText="Selecione o colaborador gestor responsável"
+          >
+            {collaborators
+              .filter(c => c.hierarchy === "Gestor")
+              .map(c => (
+                <MenuItem key={c.id} value={c.id}>
+                  {c.name}
+                </MenuItem>
+              ))}
+          </TextField>
           <TextField
             label="Salário Base"
             type="number"
