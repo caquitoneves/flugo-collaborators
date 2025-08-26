@@ -1,33 +1,24 @@
 import { useState, useEffect } from "react";
 import {
   Box,
-  Typography,
+  Snackbar,
+  Alert,
   Button,
-  Paper,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  IconButton,
-  TextField,
-  Chip,
-  Avatar,
+  Typography,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  TextField,
   MenuItem,
-  Snackbar,
-  Alert,
+  Chip,
+  Avatar,
 } from "@mui/material";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
-import AddIcon from "@mui/icons-material/Add";
-import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
-import { Collaborator, Department } from "../types";
 import { Sidebar } from "../components/Sidebar";
 import { Navbar } from "../components/Navbar";
+import { DepartmentList } from "../components/DepartmentList";
+import { DepartmentModal } from "../components/DepartmentModal";
+import { Department, Collaborator } from "../types";
 import {
   fetchDepartments,
   addDepartment,
@@ -38,12 +29,18 @@ import {
   getCollaborators,
   updateCollaborator,
 } from "../firebase/collaborators";
-import { DepartmentModal } from "../components/DepartmentModal";
+import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 
 export default function DepartmentsPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot<DocumentData> | undefined>(undefined);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [filterName, setFilterName] = useState("");
+
   const [openModal, setOpenModal] = useState(false);
   const [editDepartment, setEditDepartment] = useState<Department | null>(null);
   const [form, setForm] = useState({
@@ -53,33 +50,58 @@ export default function DepartmentsPage() {
   });
 
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
-  const [transferFromDeptId, setTransferFromDeptId] = useState<string | null>(
-    null
-  );
+  const [transferFromDeptId, setTransferFromDeptId] = useState<string | null>(null);
   const [transferToDeptId, setTransferToDeptId] = useState("");
   const [transferColabs, setTransferColabs] = useState<Collaborator[]>([]);
-  const [feedback, setFeedback] = useState<{ open: boolean; message: string }>(
-    {
-      open: false,
-      message: "",
-    }
-  );
 
-  const refreshData = async () => {
-    const depts = await fetchDepartments();
+  const [confirmDeleteDialogOpen, setConfirmDeleteDialogOpen] = useState(false);
+  const [departmentToDelete, setDepartmentToDelete] = useState<Department | null>(null);
+  const [confirmNameInput, setConfirmNameInput] = useState("");
+
+  const [feedback, setFeedback] = useState<{ open: boolean; message: string }>({
+    open: false,
+    message: "",
+  });
+
+  // =====================
+  // Lazy loading
+  // =====================
+  const loadDepartments = async () => {
+    if (loading || !hasMore) return;
+    setLoading(true);
+
+    const { departments: newDepts, lastDoc: newLastDoc } = await fetchDepartments(
+      10,
+      lastDoc ?? undefined
+    );
+
+    setDepartments((prev) => [...prev, ...newDepts]);
+    setLastDoc(newLastDoc);
+    setHasMore(!!newLastDoc); // só mostra botão se houver próximo lote
+
+    setLoading(false);
+    setInitialLoading(false);
+  };
+
+  const loadCollaborators = async () => {
     const cols = await getCollaborators();
-    setDepartments(depts);
     setCollaborators(cols);
   };
 
   useEffect(() => {
-    refreshData();
+    // reset antes de carregar
+    setDepartments([]);
+    setLastDoc(undefined);
+    setHasMore(true);
+    setInitialLoading(true);
+
+    loadDepartments();
+    loadCollaborators();
   }, []);
 
-  const filteredDepartments = departments.filter((dept) =>
-    dept.name.toLowerCase().includes(filterName.toLowerCase())
-  );
-
+  // =====================
+  // Handlers
+  // =====================
   const handleAdd = () => {
     setEditDepartment(null);
     setForm({ name: "", manager: "", collaborators: [] });
@@ -97,9 +119,18 @@ export default function DepartmentsPage() {
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.manager || form.collaborators.length === 0) return;
+    if (!form.name || !form.manager) return;
 
-    // 1) Cria/atualiza departamento e obtém deptId
+    const isDuplicate = departments.some(
+      (d) =>
+        d.name.toLowerCase() === form.name.toLowerCase() &&
+        d.id !== editDepartment?.id
+    );
+    if (isDuplicate) {
+      setFeedback({ open: true, message: "Já existe um departamento com este nome!" });
+      return;
+    }
+
     let deptId: string;
     if (editDepartment) {
       await updateDepartment(editDepartment.id, { ...form });
@@ -109,7 +140,6 @@ export default function DepartmentsPage() {
       deptId = newDept.id;
     }
 
-    // 2) Atualiza colaboradores (entra/sai do departamento)
     for (const colab of collaborators) {
       const shouldBelong =
         form.collaborators.includes(colab.id) || colab.id === form.manager;
@@ -120,34 +150,36 @@ export default function DepartmentsPage() {
           departmentName: form.name,
           managerId: form.manager,
         });
-      } else if (
-        colab.departmentId === deptId &&
-        !form.collaborators.includes(colab.id)
-      ) {
-        // estava neste dept e saiu
-        await updateCollaborator(colab.id, {
-          departmentId: "",
-          departmentName: "",
-          managerId: "",
-        });
+      } else if (colab.departmentId === deptId) {
+        await updateCollaborator(colab.id, { departmentId: "", departmentName: "", managerId: "" });
       }
     }
 
     setOpenModal(false);
-    await refreshData();
+    // reset e recarrega
+    setDepartments([]);
+    setLastDoc(undefined);
+    setHasMore(true);
+    setInitialLoading(true);
+    await loadDepartments();
   };
 
   const handleDelete = async (id: string) => {
-    const affectedColabs = collaborators.filter((c) => c.departmentId === id);
-    if (affectedColabs.length > 0) {
+    const dept = departments.find((d) => d.id === id);
+    if (!dept) return;
+
+    const allColabs = collaborators.filter((c) => c.departmentId === id);
+    const nonManagerColabs = allColabs.filter((c) => c.id !== dept.manager);
+
+    if (nonManagerColabs.length > 0) {
       setTransferFromDeptId(id);
-      setTransferColabs(affectedColabs);
+      setTransferColabs(nonManagerColabs);
       setTransferDialogOpen(true);
       return;
     }
 
-    await deleteDepartment(id);
-    await refreshData();
+    setDepartmentToDelete(dept);
+    setConfirmDeleteDialogOpen(true);
   };
 
   const handleConfirmTransfer = async () => {
@@ -171,160 +203,45 @@ export default function DepartmentsPage() {
     setTransferFromDeptId(null);
     setTransferToDeptId("");
     setTransferColabs([]);
-    setFeedback({
-      open: true,
-      message:
-        "Colaboradores transferidos e departamento excluído com sucesso!",
-    });
+    setFeedback({ open: true, message: "Colaboradores transferidos e departamento excluído com sucesso!" });
 
-    await refreshData();
+    setDepartments([]);
+    setLastDoc(undefined);
+    setHasMore(true);
+    setInitialLoading(true);
+    await loadDepartments();
   };
 
+  // =====================
+  // JSX
+  // =====================
   return (
-    <Box
-      sx={{
-        display: "flex",
-        minHeight: "100vh",
-        bgcolor: "background.default",
-      }}
-    >
+    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
       <Sidebar />
-      <Box
-        sx={{
-          flex: 1,
-          position: "relative",
-          minHeight: "100vh",
-          bgcolor: "background.default",
-        }}
-      >
+      <Box sx={{ flex: 1, position: "relative", minHeight: "100vh", bgcolor: "background.default" }}>
         <Navbar />
-        <Box sx={{ p: 4 }}>
-          <Box
-            display="flex"
-            justifyContent="space-between"
-            alignItems="center"
-            mb={4}
-          >
-            <Typography variant="h5" sx={{ fontWeight: 600, color: "#222" }}>
-              Departamentos
-            </Typography>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              sx={{
-                bgcolor: "#22C55E",
-                color: "#fff",
-                fontWeight: 600,
-                borderRadius: 0.5,
-                boxShadow: "none",
-                textTransform: "none",
-                px: 2,
-                py: 1.2,
-                fontSize: 16,
-                "&:hover": { bgcolor: "#16A34A" },
-              }}
-              onClick={handleAdd}
-            >
-              Novo Departamento
+
+        {initialLoading ? (
+          <Typography sx={{ p: 2 }}>Carregando departamentos...</Typography>
+        ) : (
+          <DepartmentList
+            departments={departments}
+            collaborators={collaborators}
+            filterName={filterName}
+            setFilterName={setFilterName}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onAdd={handleAdd}
+          />
+        )}
+
+        {hasMore && !initialLoading && (
+          <Box display="flex" justifyContent="center" my={2}>
+            <Button onClick={loadDepartments} disabled={loading}>
+              {loading ? "Carregando..." : "Carregar mais"}
             </Button>
           </Box>
-
-          <TextField
-            label="Filtrar por nome"
-            variant="outlined"
-            size="small"
-            value={filterName}
-            onChange={(e) => setFilterName(e.target.value)}
-            sx={{ mb: 2 }}
-          />
-
-          <Paper
-            elevation={0}
-            sx={{
-              borderRadius: 2.5,
-              boxShadow: "0px 2px 15px 0px #0000000D",
-              overflow: "hidden",
-            }}
-          >
-            <Table sx={{ minWidth: 650, bgcolor: "#F9FAFB" }}>
-              <TableHead>
-                <TableRow sx={{ bgcolor: "#F9FAFB", height: 56 }}>
-                  <TableCell sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}>
-                    Nome <ArrowDownwardIcon sx={{ fontSize: 16, ml: 0.5 }} />
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}>
-                    Gestor Responsável <ArrowDownwardIcon sx={{ fontSize: 16, ml: 0.5 }} />
-                  </TableCell>
-                  <TableCell sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}>
-                    Colaboradores <ArrowDownwardIcon sx={{ fontSize: 16, ml: 0.5 }} />
-                  </TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}>
-                    Ações
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredDepartments.map((dept) => (
-                  <TableRow key={dept.id}>
-                    <TableCell>
-                      <Typography sx={{ fontWeight: 500, color: "#222" }}>
-                        {dept.name}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      {collaborators.find((c) => c.id === dept.manager) ? (
-                        <Box display="flex" alignItems="center" gap={1}>
-                          <Avatar
-                            src={
-                              collaborators.find((c) => c.id === dept.manager)
-                                ?.avatarUrl
-                            }
-                            sx={{ width: 32, height: 32 }}
-                          />
-                          <Typography sx={{ fontWeight: 500 }}>
-                            {
-                              collaborators.find((c) => c.id === dept.manager)
-                                ?.name
-                            }
-                          </Typography>
-                        </Box>
-                      ) : (
-                        <Chip label="Não definido" color="warning" />
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Box display="flex" gap={1} flexWrap="wrap">
-                        {collaborators
-                          .filter((c) => c.departmentId === dept.id)
-                          .map((colab) => (
-                            <Chip
-                              key={colab.id}
-                              avatar={
-                                <Avatar
-                                  src={colab.avatarUrl}
-                                  sx={{ width: 24, height: 24 }}
-                                />
-                              }
-                              label={colab.name}
-                              sx={{ mb: 0.5 }}
-                            />
-                          ))}
-                      </Box>
-                    </TableCell>
-                    <TableCell align="center">
-                      <IconButton color="primary" onClick={() => handleEdit(dept)}>
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton color="error" onClick={() => handleDelete(dept.id)}>
-                        <DeleteIcon />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Paper>
-        </Box>
+        )}
 
         <DepartmentModal
           open={openModal}
@@ -336,6 +253,7 @@ export default function DepartmentsPage() {
           editDepartment={!!editDepartment}
         />
 
+        {/* Transfer Dialog */}
         <Dialog
           open={transferDialogOpen}
           onClose={() => setTransferDialogOpen(false)}
@@ -383,7 +301,9 @@ export default function DepartmentsPage() {
             </Box>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setTransferDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={() => setTransferDialogOpen(false)}>
+              Cancelar
+            </Button>
             <Button
               onClick={handleConfirmTransfer}
               variant="contained"
@@ -395,6 +315,53 @@ export default function DepartmentsPage() {
               }}
             >
               Transferir e Excluir
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Confirm Delete Dialog */}
+        <Dialog
+          open={confirmDeleteDialogOpen}
+          onClose={() => setConfirmDeleteDialogOpen(false)}
+        >
+          <DialogTitle>Confirmar exclusão</DialogTitle>
+          <DialogContent>
+            <Typography sx={{ mb: 2 }}>
+              Tem certeza que deseja excluir o departamento{" "}
+              <strong>{departmentToDelete?.name}</strong>? Digite o nome para
+              confirmar.
+            </Typography>
+            <TextField
+              fullWidth
+              variant="outlined"
+              size="small"
+              value={confirmNameInput}
+              onChange={(e) => setConfirmNameInput(e.target.value)}
+              placeholder={`Digite "${departmentToDelete?.name}" para confirmar`}
+              disabled={!departmentToDelete}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setConfirmDeleteDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
+              disabled={confirmNameInput !== departmentToDelete?.name}
+              onClick={async () => {
+                if (!departmentToDelete) return;
+                await deleteDepartment(departmentToDelete.id);
+                setConfirmDeleteDialogOpen(false);
+                setDepartmentToDelete(null);
+
+                setDepartments([]);
+                setLastDoc(undefined);
+                setHasMore(true);
+                await loadDepartments();
+              }}
+            >
+              Excluir
             </Button>
           </DialogActions>
         </Dialog>

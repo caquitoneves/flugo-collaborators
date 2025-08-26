@@ -6,6 +6,7 @@ import { CollaboratorList } from "../components/CollaboratorList";
 import { Step1 } from "../components/MultiStepForm/Step1";
 import { Step2 } from "../components/MultiStepForm/Step2";
 import EditCollaboratorModal from "../components/EditCollaboratorModal";
+
 import {
   addCollaborator,
   existsCollaboratorEmail,
@@ -15,6 +16,7 @@ import {
 } from "../firebase/collaborators";
 import { Collaborator, Department } from "../types";
 import { fetchDepartments } from "../firebase/departments";
+
 import {
   collection,
   getDocs,
@@ -22,29 +24,35 @@ import {
   orderBy,
   limit,
   startAfter,
+  QueryDocumentSnapshot,
 } from "firebase/firestore";
 import { db } from "../firebase/config";
 
-// Limpa undefined/null e string vazia
-function cleanObject<T extends Record<string, any>>(obj: T): T {
-  return Object.fromEntries(
+// Utility: Remove undefined, null, or empty strings
+const cleanObject = <T extends Record<string, any>>(obj: T): T =>
+  Object.fromEntries(
     Object.entries(obj).filter(
       ([, v]) => v !== undefined && v !== null && v !== ""
     )
   ) as T;
-}
 
 export default function CollaboratorsPage() {
+  // =======================
+  // STATES
+  // =======================
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [lastDoc, setLastDoc] = useState<any>(null);
+  const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
 
   const [formStep, setFormStep] = useState<1 | 2 | null>(null);
-  const [formData, setFormData] = useState<
-    Partial<Omit<Collaborator, "id">> | null
-  >(null);
+  const [formData, setFormData] = useState<Partial<
+    Omit<Collaborator, "id">
+  > | null>(null);
+  const [editCollaborator, setEditCollaborator] = useState<Collaborator | null>(
+    null
+  );
 
   const [feedback, setFeedback] = useState<{
     open: boolean;
@@ -56,36 +64,36 @@ export default function CollaboratorsPage() {
     message: "",
   });
 
-  // Modal edição rápida
+  // Modal de edição rápida
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editModalLoading, setEditModalLoading] = useState(false);
   const [selectedCollaborator, setSelectedCollaborator] =
     useState<Collaborator | null>(null);
 
-  // Edição completa
-  const [editCollaborator, setEditCollaborator] =
-    useState<Collaborator | null>(null);
-
-  // Paginação
+  // =======================
+  // FETCH FUNCTIONS
+  // =======================
   const fetchCollaboratorsPaged = async (loadMore = false) => {
+    if (loading) return;
     setLoading(true);
-    const ref = collection(db, "collaborators");
-    let q = query(ref, orderBy("name"), limit(10));
-    if (loadMore && lastDoc) {
-      q = query(ref, orderBy("name"), startAfter(lastDoc), limit(10));
-    }
 
     try {
+      const ref = collection(db, "collaborators");
+      let q = query(ref, orderBy("name"), limit(10));
+      if (loadMore && lastDoc)
+        q = query(ref, orderBy("name"), startAfter(lastDoc), limit(10));
+
       const snapshot = await getDocs(q);
-      const newData = snapshot.docs.map((doc) => ({
+      const newData: Collaborator[] = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...(doc.data() as Omit<Collaborator, "id">),
       }));
 
       setCollaborators((prev) => (loadMore ? [...prev, ...newData] : newData));
-      setLastDoc(snapshot.docs[snapshot.docs.length - 1]);
+      setLastDoc(snapshot.docs[snapshot.docs.length - 1] ?? null);
       setHasMore(snapshot.docs.length === 10);
-    } catch (error) {
+    } catch (e) {
+      console.error(e);
       setFeedback({
         open: true,
         type: "error",
@@ -97,20 +105,32 @@ export default function CollaboratorsPage() {
   };
 
   const fetchAllDepartments = async () => {
-    const depts = await fetchDepartments();
-    setDepartments(depts);
+    try {
+      const { departments: depts } = await fetchDepartments();
+      setDepartments(depts);
+    } catch (e) {
+      console.error(e);
+      setFeedback({
+        open: true,
+        type: "error",
+        message: "Erro ao carregar departamentos.",
+      });
+    }
   };
 
   useEffect(() => {
-    fetchCollaboratorsPaged(false);
+    fetchCollaboratorsPaged();
     fetchAllDepartments();
   }, []);
 
-  // Multi-step cadastro
+  // =======================
+  // MULTI-STEP FORM HANDLERS
+  // =======================
   const handleAdd = () => {
     setFormStep(1);
     setEditCollaborator(null);
   };
+
   const handleBack = () => {
     setFormStep(null);
     setFormData(null);
@@ -158,7 +178,7 @@ export default function CollaboratorsPage() {
           departments.find((d) => d.id === departmentId)?.name;
       }
 
-      const collaboratorToSave: Omit<Collaborator, "id"> = {
+      const collaboratorToSave: Omit<Collaborator, "id"> = cleanObject({
         name: formData.name!,
         email: formData.email!,
         status: formData.status ?? "ativo",
@@ -171,42 +191,25 @@ export default function CollaboratorsPage() {
         salaryBase: data.salaryBase ?? 0,
         departmentId: departmentId || "",
         departmentName: departmentName || "",
-      };
+      });
 
       if (editCollaborator) {
-        await updateCollaborator(
-          editCollaborator.id,
-          cleanObject(collaboratorToSave)
-        );
-
-        // Se definiu manager + dept, garante dept no manager
-        if (data.managerId && departmentId) {
-          const manager = collaborators.find((c) => c.id === data.managerId);
-          if (manager) {
-            await updateCollaborator(manager.id, {
-              departmentId: departmentId,
-              departmentName: departmentName || "",
-            });
-          }
-        }
-
+        await updateCollaborator(editCollaborator.id, collaboratorToSave);
         setFeedback({
           open: true,
           type: "success",
           message: "Colaborador atualizado com sucesso!",
         });
       } else {
-        const alreadyExists = await existsCollaboratorEmail(formData.email!);
-        if (alreadyExists) {
+        if (await existsCollaboratorEmail(formData.email!)) {
           setFeedback({
             open: true,
             type: "error",
             message: "Já existe colaborador com este e-mail!",
           });
-          setLoading(false);
           return;
         }
-        await addCollaborator(cleanObject(collaboratorToSave));
+        await addCollaborator(collaboratorToSave);
         setFeedback({
           open: true,
           type: "success",
@@ -217,6 +220,7 @@ export default function CollaboratorsPage() {
       setFormStep(null);
       setFormData(null);
       setEditCollaborator(null);
+
       await fetchCollaboratorsPaged(false);
       await fetchAllDepartments();
     } catch (e) {
@@ -231,12 +235,9 @@ export default function CollaboratorsPage() {
     }
   };
 
-  // Paginação
-  const handleLoadMore = () => {
-    if (!loading && hasMore) fetchCollaboratorsPaged(true);
-  };
-
-  // --- Modal edição rápida ---
+  // =======================
+  // EDIT MODAL HANDLERS
+  // =======================
   const handleEditModalOpen = (collaborator: Collaborator) => {
     setSelectedCollaborator(collaborator);
     setEditModalOpen(true);
@@ -245,15 +246,15 @@ export default function CollaboratorsPage() {
     setEditModalOpen(false);
     setSelectedCollaborator(null);
   };
-
   const handleEditModalSave = async (data: Partial<Collaborator>) => {
     if (!selectedCollaborator) return;
     setEditModalLoading(true);
+
     try {
       const seniority = data.seniority || selectedCollaborator.seniority;
       const isGestor = seniority === "gestor";
 
-      let departmentName = data.departmentId
+      const departmentName = data.departmentId
         ? departments.find((d) => d.id === data.departmentId)?.name
         : selectedCollaborator.departmentName;
 
@@ -270,22 +271,12 @@ export default function CollaboratorsPage() {
       });
 
       await updateCollaborator(selectedCollaborator.id, patch);
-
-      if (data.managerId && patch.departmentId) {
-        const manager = collaborators.find((c) => c.id === data.managerId);
-        if (manager) {
-          await updateCollaborator(manager.id, {
-            departmentId: patch.departmentId,
-            departmentName: departmentName || "",
-          });
-        }
-      }
-
       setFeedback({
         open: true,
         type: "success",
         message: "Colaborador atualizado com sucesso!",
       });
+
       await fetchCollaboratorsPaged(false);
       await fetchAllDepartments();
       handleEditModalClose();
@@ -301,7 +292,9 @@ export default function CollaboratorsPage() {
     }
   };
 
-  // Exclusão individual
+  // =======================
+  // DELETE HANDLERS
+  // =======================
   const handleDelete = async (id: string) => {
     setLoading(true);
     try {
@@ -325,7 +318,6 @@ export default function CollaboratorsPage() {
     }
   };
 
-  // Exclusão em massa
   const handleDeleteSelected = async (ids: string[]) => {
     setLoading(true);
     try {
@@ -349,9 +341,20 @@ export default function CollaboratorsPage() {
     }
   };
 
+  const handleLoadMore = () => {
+    if (!loading && hasMore) fetchCollaboratorsPaged(true);
+  };
+
+  // =======================
+  // JSX
+  // =======================
   return (
     <Box
-      sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}
+      sx={{
+        display: "flex",
+        minHeight: "100vh",
+        bgcolor: "background.default",
+      }}
     >
       <Sidebar />
       <Box
@@ -367,7 +370,7 @@ export default function CollaboratorsPage() {
         {formStep === null ? (
           <CollaboratorList
             collaborators={collaborators}
-            departments={departments} // 👈 passa para a lista
+            departments={departments}
             onAdd={handleAdd}
             onEditModal={handleEditModalOpen}
             onDelete={handleDelete}
@@ -398,10 +401,10 @@ export default function CollaboratorsPage() {
           open={editModalOpen}
           collaborator={selectedCollaborator || null}
           collaborators={collaborators}
+          departments={departments}
           loading={editModalLoading}
           onClose={handleEditModalClose}
           onSave={handleEditModalSave}
-          departments={departments}
         />
 
         <Snackbar

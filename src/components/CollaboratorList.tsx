@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import {
   Box,
   Table,
@@ -18,7 +19,6 @@ import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { Visibility } from "@mui/icons-material";
-import { useState, useMemo } from "react";
 import { Collaborator, Department } from "../types";
 import { ViewCollaboratorModal } from "./ViewCollaboratorModal";
 
@@ -52,51 +52,36 @@ export const CollaboratorList = ({
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedColab, setSelectedColab] = useState<Collaborator | null>(null);
 
-  // Filtragem
-  const filteredCollaborators = useMemo(() => {
-    const depFilter = filterDepartment.toLowerCase();
-    const nameFilter = filterName.toLowerCase();
-    const emailFilter = filterEmail.toLowerCase();
+  // --- Filtragem ---
+  const filtered = useMemo(() => {
+    const nameF = filterName.toLowerCase();
+    const emailF = filterEmail.toLowerCase();
+    const deptF = filterDepartment.toLowerCase();
 
-    return collaborators.filter((colab) => {
-      const nameMatch = colab.name.toLowerCase().includes(nameFilter);
-      const emailMatch = colab.email.toLowerCase().includes(emailFilter);
-      const deptValue = (colab.departmentName ?? "").toLowerCase();
-      const deptMatch = deptValue.includes(depFilter);
-      return nameMatch && emailMatch && deptMatch;
+    return collaborators.filter((c) => {
+      return (
+        c.name.toLowerCase().includes(nameF) &&
+        c.email.toLowerCase().includes(emailF) &&
+        (c.departmentName ?? "").toLowerCase().includes(deptF)
+      );
     });
   }, [collaborators, filterName, filterEmail, filterDepartment]);
 
-  // Seleção
-  const allSelected =
-    filteredCollaborators.length > 0 &&
-    filteredCollaborators.every((c) => selectedIds.includes(c.id));
+  const allSelected = filtered.length > 0 && filtered.every((c) => selectedIds.includes(c.id));
 
-  const handleSelect = (id: string) => {
+  const handleSelect = (id: string) =>
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((sid) => sid !== id) : [...prev, id]
     );
-  };
 
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.checked) {
-      setSelectedIds(filteredCollaborators.map((c) => c.id));
-    } else {
-      setSelectedIds((prev) =>
-        prev.filter((id) => !filteredCollaborators.some((c) => c.id === id))
-      );
-    }
+    setSelectedIds(event.target.checked ? filtered.map((c) => c.id) : []);
   };
 
   return (
     <Box sx={{ width: "100%", p: 2, mt: 3 }}>
-      <Box
-        display="flex"
-        justifyContent="space-between"
-        alignItems="center"
-        mb={4}
-        px={4}
-      >
+      {/* Header */}
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4} px={4}>
         <Typography variant="h5" sx={{ fontWeight: 600, color: "#222" }}>
           Colaboradores
         </Typography>
@@ -141,22 +126,10 @@ export const CollaboratorList = ({
 
       {/* Filtros */}
       <Box display="flex" gap={2} mb={2} px={4}>
+        <TextField label="Nome" variant="outlined" size="small" value={filterName} onChange={(e) => setFilterName(e.target.value)} />
+        <TextField label="Email" variant="outlined" size="small" value={filterEmail} onChange={(e) => setFilterEmail(e.target.value)} />
         <TextField
-          label="Filtrar por nome"
-          variant="outlined"
-          size="small"
-          value={filterName}
-          onChange={(e) => setFilterName(e.target.value)}
-        />
-        <TextField
-          label="Filtrar por email"
-          variant="outlined"
-          size="small"
-          value={filterEmail}
-          onChange={(e) => setFilterEmail(e.target.value)}
-        />
-        <TextField
-          label="Filtrar por departamento"
+          label="Departamento"
           variant="outlined"
           size="small"
           value={filterDepartment}
@@ -164,34 +137,20 @@ export const CollaboratorList = ({
         />
       </Box>
 
+      {/* Tabela */}
       <Box sx={{ px: 4 }}>
-        <Paper
-          elevation={0}
-          sx={{
-            borderRadius: 2.5,
-            boxShadow: "0px 2px 15px 0px #0000000D",
-            overflow: "hidden",
-          }}
-        >
+        <Paper elevation={0} sx={{ borderRadius: 2.5, boxShadow: "0px 2px 15px 0px #0000000D", overflow: "hidden" }}>
           <Table sx={{ minWidth: 650, bgcolor: "#F9FAFB" }}>
             <TableHead>
               <TableRow sx={{ bgcolor: "#F9FAFB", height: 56 }}>
                 <TableCell padding="checkbox">
-                  <Checkbox
-                    checked={allSelected}
-                    onChange={handleSelectAll}
-                    color="primary"
-                  />
+                  <Checkbox checked={allSelected} onChange={handleSelectAll} color="primary" />
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}>
-                  Nome <ArrowDownwardIcon sx={{ fontSize: 16, ml: 0.5 }} />
-                </TableCell>
-                <TableCell sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}>
-                  Email <ArrowDownwardIcon sx={{ fontSize: 16, ml: 0.5 }} />
-                </TableCell>
-                <TableCell sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}>
-                  Departamento <ArrowDownwardIcon sx={{ fontSize: 16, ml: 0.5 }} />
-                </TableCell>
+                {["Nome", "Email", "Departamento"].map((label) => (
+                  <TableCell key={label} sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}>
+                    {label} <ArrowDownwardIcon sx={{ fontSize: 16, ml: 0.5 }} />
+                  </TableCell>
+                ))}
                 <TableCell align="right" sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}>
                   Status <ArrowDownwardIcon sx={{ fontSize: 16, ml: 0.5 }} />
                 </TableCell>
@@ -202,69 +161,52 @@ export const CollaboratorList = ({
             </TableHead>
 
             <TableBody>
-              {filteredCollaborators.map((colab) => (
-                <TableRow key={colab.id} sx={{ background: "#fff", height: 64 }}>
+              {filtered.map((c) => (
+                <TableRow key={c.id} sx={{ background: "#fff", height: 64 }}>
                   <TableCell padding="checkbox">
-                    <Checkbox
-                      checked={selectedIds.includes(colab.id)}
-                      onChange={() => handleSelect(colab.id)}
-                      color="primary"
-                    />
+                    <Checkbox checked={selectedIds.includes(c.id)} onChange={() => handleSelect(c.id)} color="primary" />
                   </TableCell>
                   <TableCell>
                     <Box display="flex" alignItems="center" gap={1}>
-                      <Avatar src={colab.avatarUrl} alt={colab.name} />
-                      <Typography sx={{ fontWeight: 500, color: "#222" }}>
-                        {colab.name}
-                      </Typography>
+                      <Avatar src={c.avatarUrl} alt={c.name} />
+                      <Typography sx={{ fontWeight: 500, color: "#222" }}>{c.name}</Typography>
                     </Box>
                   </TableCell>
-                  <TableCell>{colab.email}</TableCell>
-                  <TableCell>{colab.departmentName ?? ""}</TableCell>
+                  <TableCell>{c.email}</TableCell>
+                  <TableCell>{c.departmentName ?? ""}</TableCell>
                   <TableCell align="right">
                     <Chip
-                      label={colab.status === "ativo" ? "Ativo" : "Inativo"}
+                      label={c.status === "ativo" ? "Ativo" : "Inativo"}
                       sx={{
-                        bgcolor: colab.status === "ativo" ? "#DEF7EC" : "#FEE2E2",
-                        color: colab.status === "ativo" ? "#22C55E" : "#EF4444",
+                        bgcolor: c.status === "ativo" ? "#DEF7EC" : "#FEE2E2",
+                        color: c.status === "ativo" ? "#22C55E" : "#EF4444",
                         fontWeight: 600,
                       }}
                     />
                   </TableCell>
                   <TableCell align="center">
-                    <IconButton
-                      color="primary"
-                      onClick={() => onEditModal(colab)}
-                      title="Editar colaborador"
-                    >
+                    <IconButton color="primary" onClick={() => onEditModal(c)} title="Editar">
                       <EditIcon />
                     </IconButton>
-                    <IconButton
-                      color="info"
-                      onClick={() => {
-                        setSelectedColab(colab);
-                        setViewModalOpen(true);
-                      }}
-                      title="Visualizar colaborador"
-                    >
+                    <IconButton color="info" onClick={() => { setSelectedColab(c); setViewModalOpen(true); }} title="Visualizar">
                       <Visibility />
                     </IconButton>
-                    <IconButton color="error" onClick={() => onDelete(colab.id)}>
+                    <IconButton color="error" onClick={() => onDelete(c.id)}>
                       <DeleteIcon />
                     </IconButton>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
-
-            <ViewCollaboratorModal
-              open={viewModalOpen}
-              onClose={() => setViewModalOpen(false)}
-              collaborator={selectedColab}
-              collaborators={collaborators}
-              departments={departments} // 👈 agora passando a lista real
-            />
           </Table>
+
+          <ViewCollaboratorModal
+            open={viewModalOpen}
+            onClose={() => setViewModalOpen(false)}
+            collaborator={selectedColab}
+            collaborators={collaborators}
+            departments={departments}
+          />
         </Paper>
 
         {hasMore && (

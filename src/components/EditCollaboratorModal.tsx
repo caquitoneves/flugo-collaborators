@@ -18,7 +18,7 @@ interface Props {
   collaborator: Collaborator | null;
   departments: Department[];
   collaborators: Collaborator[];
-  loading?: boolean; // 🔹 adicionada
+  loading?: boolean;
 }
 
 export default function EditCollaboratorModal({

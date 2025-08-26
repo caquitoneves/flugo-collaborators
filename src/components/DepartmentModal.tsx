@@ -40,15 +40,16 @@ export function DepartmentModal({
           margin="normal"
           required
         />
+
         <TextField
-          label="Gestor Responsável"
+          label="Gestor Responsável (opcional)"
           select
           value={form.manager}
           onChange={e => setForm(f => ({ ...f, manager: e.target.value }))}
           fullWidth
           margin="normal"
-          required
         >
+          <MenuItem value="">Nenhum</MenuItem>
           {collaborators
             .filter(c => c.seniority === "gestor")
             .map(c => (
@@ -57,8 +58,9 @@ export function DepartmentModal({
               </MenuItem>
             ))}
         </TextField>
+
         <TextField
-          label="Colaboradores"
+          label="Colaboradores (opcional)"
           select
           SelectProps={{ multiple: true }}
           value={form.collaborators}
@@ -68,7 +70,6 @@ export function DepartmentModal({
           }))}
           fullWidth
           margin="normal"
-          required
         >
           {collaborators.map(c => (
             <MenuItem key={c.id} value={c.id}>
