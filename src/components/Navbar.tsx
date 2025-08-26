@@ -10,6 +10,7 @@ import {
 import Person2RoundedIcon from "@mui/icons-material/Person2Rounded";
 import SettingsIcon from "@mui/icons-material/Settings";
 import LogoutIcon from "@mui/icons-material/Logout";
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import { logout } from "../firebase/auth";
 import { useNavigate } from "react-router-dom";
 
@@ -48,14 +49,16 @@ export const Navbar = () => {
       <Tooltip title="Opções">
         <IconButton onClick={handleOpenMenu} size="small">
           <Avatar
-            src="/avatars/avatar-user.png"
             sx={{
               width: 40,
               height: 40,
               border: "2px solid #ECECEC",
-              bgcolor: "#fff",
+              bgcolor: "#f5f5f5",
+              color: "#666",
             }}
-          />
+          >
+            <AccountCircleIcon sx={{ fontSize: 28 }} />
+          </Avatar>
         </IconButton>
       </Tooltip>
 
