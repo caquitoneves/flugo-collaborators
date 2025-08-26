@@ -1,4 +1,13 @@
-import { useState, useEffect } from "react";
+import {
+  collection,
+  getDocs,
+  query,
+  orderBy,
+  limit,
+  startAfter,
+  QueryDocumentSnapshot,
+} from "firebase/firestore";
+import { db } from "../firebase/config";import { useState, useEffect } from "react";
 import {
   Box,
   Snackbar,
@@ -29,17 +38,13 @@ import {
   getCollaborators,
   updateCollaborator,
 } from "../firebase/collaborators";
-import { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 
 export default function DepartmentsPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot<DocumentData> | undefined>(undefined);
-  const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
-
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
-  const [filterName, setFilterName] = useState("");
+  const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
 
   const [openModal, setOpenModal] = useState(false);
   const [editDepartment, setEditDepartment] = useState<Department | null>(null);
@@ -50,12 +55,15 @@ export default function DepartmentsPage() {
   });
 
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
-  const [transferFromDeptId, setTransferFromDeptId] = useState<string | null>(null);
+  const [transferFromDeptId, setTransferFromDeptId] = useState<string | null>(
+    null
+  );
   const [transferToDeptId, setTransferToDeptId] = useState("");
   const [transferColabs, setTransferColabs] = useState<Collaborator[]>([]);
 
   const [confirmDeleteDialogOpen, setConfirmDeleteDialogOpen] = useState(false);
-  const [departmentToDelete, setDepartmentToDelete] = useState<Department | null>(null);
+  const [departmentToDelete, setDepartmentToDelete] =
+    useState<Department | null>(null);
   const [confirmNameInput, setConfirmNameInput] = useState("");
 
   const [feedback, setFeedback] = useState<{ open: boolean; message: string }>({
@@ -64,39 +72,53 @@ export default function DepartmentsPage() {
   });
 
   // =====================
-  // Lazy loading
+  // Fetch functions with pagination
   // =====================
-  const loadDepartments = async () => {
-    if (loading || !hasMore) return;
+  const fetchDepartmentsPaged = async (loadMore = false) => {
+    if (loading) return;
     setLoading(true);
 
-    const { departments: newDepts, lastDoc: newLastDoc } = await fetchDepartments(
-      10,
-      lastDoc ?? undefined
-    );
+    try {
+      const ref = collection(db, "departments");
+      let q = query(ref, orderBy("name"), limit(10));
+      if (loadMore && lastDoc)
+        q = query(ref, orderBy("name"), startAfter(lastDoc), limit(10));
 
-    setDepartments((prev) => [...prev, ...newDepts]);
-    setLastDoc(newLastDoc);
-    setHasMore(!!newLastDoc); // só mostra botão se houver próximo lote
+      const snapshot = await getDocs(q);
+      const newData: Department[] = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as Omit<Department, "id">),
+      }));
 
-    setLoading(false);
-    setInitialLoading(false);
+      setDepartments((prev) => (loadMore ? [...prev, ...newData] : newData));
+      setLastDoc(snapshot.docs[snapshot.docs.length - 1] ?? null);
+      setHasMore(snapshot.docs.length === 10);
+    } catch (e) {
+      console.error(e);
+      setFeedback({ open: true, message: "Erro ao carregar departamentos." });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const loadCollaborators = async () => {
-    const cols = await getCollaborators();
-    setCollaborators(cols);
+    try {
+      const cols = await getCollaborators();
+      setCollaborators(cols);
+    } catch (error) {
+      console.error("Erro ao carregar colaboradores:", error);
+      setFeedback({ open: true, message: "Erro ao carregar colaboradores." });
+    }
+  };
+
+  const refreshData = async () => {
+    await fetchDepartmentsPaged(false);
+    await loadCollaborators();
   };
 
   useEffect(() => {
-    // reset antes de carregar
-    setDepartments([]);
-    setLastDoc(undefined);
-    setHasMore(true);
-    setInitialLoading(true);
-
-    loadDepartments();
     loadCollaborators();
+    fetchDepartmentsPaged(false);
   }, []);
 
   // =====================
@@ -119,49 +141,68 @@ export default function DepartmentsPage() {
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.manager) return;
-
-    const isDuplicate = departments.some(
-      (d) =>
-        d.name.toLowerCase() === form.name.toLowerCase() &&
-        d.id !== editDepartment?.id
-    );
-    if (isDuplicate) {
-      setFeedback({ open: true, message: "Já existe um departamento com este nome!" });
+    if (!form.name || !form.manager) {
+      setFeedback({ open: true, message: "Nome e gestor são obrigatórios!" });
       return;
     }
 
-    let deptId: string;
-    if (editDepartment) {
-      await updateDepartment(editDepartment.id, { ...form });
-      deptId = editDepartment.id;
-    } else {
-      const newDept = await addDepartment({ ...form });
-      deptId = newDept.id;
-    }
-
-    for (const colab of collaborators) {
-      const shouldBelong =
-        form.collaborators.includes(colab.id) || colab.id === form.manager;
-
-      if (shouldBelong) {
-        await updateCollaborator(colab.id, {
-          departmentId: deptId,
-          departmentName: form.name,
-          managerId: form.manager,
+    try {
+      const isDuplicate = departments.some(
+        (d) =>
+          d.name.toLowerCase() === form.name.toLowerCase() &&
+          d.id !== editDepartment?.id
+      );
+      if (isDuplicate) {
+        setFeedback({
+          open: true,
+          message: "Já existe um departamento com este nome!",
         });
-      } else if (colab.departmentId === deptId) {
-        await updateCollaborator(colab.id, { departmentId: "", departmentName: "", managerId: "" });
+        return;
       }
-    }
 
-    setOpenModal(false);
-    // reset e recarrega
-    setDepartments([]);
-    setLastDoc(undefined);
-    setHasMore(true);
-    setInitialLoading(true);
-    await loadDepartments();
+      let deptId: string;
+      if (editDepartment) {
+        await updateDepartment(editDepartment.id, { ...form });
+        deptId = editDepartment.id;
+        setFeedback({
+          open: true,
+          message: "Departamento atualizado com sucesso!",
+        });
+      } else {
+        const newDept = await addDepartment({ ...form });
+        deptId = newDept.id;
+        setFeedback({
+          open: true,
+          message: "Departamento criado com sucesso!",
+        });
+      }
+
+      // Update collaborators
+      for (const colab of collaborators) {
+        const shouldBelong =
+          form.collaborators.includes(colab.id) || colab.id === form.manager;
+
+        if (shouldBelong) {
+          await updateCollaborator(colab.id, {
+            departmentId: deptId,
+            departmentName: form.name,
+            managerId: form.manager,
+          });
+        } else if (colab.departmentId === deptId) {
+          await updateCollaborator(colab.id, {
+            departmentId: "",
+            departmentName: "",
+            managerId: "",
+          });
+        }
+      }
+
+      setOpenModal(false);
+      await refreshData();
+    } catch (error) {
+      console.error("Erro ao salvar departamento:", error);
+      setFeedback({ open: true, message: "Erro ao salvar departamento." });
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -185,63 +226,95 @@ export default function DepartmentsPage() {
   const handleConfirmTransfer = async () => {
     if (!transferFromDeptId || !transferToDeptId) return;
 
-    const newDept = departments.find((d) => d.id === transferToDeptId);
-    const newManagerId = newDept?.manager || "";
-    const newDeptName = newDept?.name || "";
+    try {
+      const newDept = departments.find((d) => d.id === transferToDeptId);
+      const newManagerId = newDept?.manager || "";
+      const newDeptName = newDept?.name || "";
 
-    for (const colab of transferColabs) {
-      await updateCollaborator(colab.id, {
-        departmentId: transferToDeptId,
-        departmentName: newDeptName,
-        managerId: newManagerId,
+      // Transfer collaborators
+      for (const colab of transferColabs) {
+        await updateCollaborator(colab.id, {
+          departmentId: transferToDeptId,
+          departmentName: newDeptName,
+          managerId: newManagerId,
+        });
+      }
+
+      // Delete department
+      await deleteDepartment(transferFromDeptId);
+
+      setTransferDialogOpen(false);
+      setTransferFromDeptId(null);
+      setTransferToDeptId("");
+      setTransferColabs([]);
+      setFeedback({
+        open: true,
+        message:
+          "Colaboradores transferidos e departamento excluído com sucesso!",
       });
+
+      await refreshData();
+    } catch (error) {
+      console.error("Erro ao transferir colaboradores:", error);
+      setFeedback({ open: true, message: "Erro ao transferir colaboradores." });
     }
+  };
 
-    await deleteDepartment(transferFromDeptId);
+  const handleConfirmDelete = async () => {
+    if (!departmentToDelete) return;
 
-    setTransferDialogOpen(false);
-    setTransferFromDeptId(null);
-    setTransferToDeptId("");
-    setTransferColabs([]);
-    setFeedback({ open: true, message: "Colaboradores transferidos e departamento excluído com sucesso!" });
+    try {
+      await deleteDepartment(departmentToDelete.id);
+      setConfirmDeleteDialogOpen(false);
+      setDepartmentToDelete(null);
+      setConfirmNameInput("");
+      setFeedback({
+        open: true,
+        message: "Departamento excluído com sucesso!",
+      });
+      await refreshData();
+    } catch (error) {
+      console.error("Erro ao excluir departamento:", error);
+      setFeedback({ open: true, message: "Erro ao excluir departamento." });
+    }
+  };
 
-    setDepartments([]);
-    setLastDoc(undefined);
-    setHasMore(true);
-    setInitialLoading(true);
-    await loadDepartments();
+  const handleLoadMore = () => {
+    if (!loading && hasMore) fetchDepartmentsPaged(true);
   };
 
   // =====================
   // JSX
   // =====================
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "100vh",
+        bgcolor: "background.default",
+      }}
+    >
       <Sidebar />
-      <Box sx={{ flex: 1, position: "relative", minHeight: "100vh", bgcolor: "background.default" }}>
+      <Box
+        sx={{
+          flex: 1,
+          position: "relative",
+          minHeight: "100vh",
+          bgcolor: "background.default",
+        }}
+      >
         <Navbar />
 
-        {initialLoading ? (
-          <Typography sx={{ p: 2 }}>Carregando departamentos...</Typography>
-        ) : (
-          <DepartmentList
-            departments={departments}
-            collaborators={collaborators}
-            filterName={filterName}
-            setFilterName={setFilterName}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onAdd={handleAdd}
-          />
-        )}
-
-        {hasMore && !initialLoading && (
-          <Box display="flex" justifyContent="center" my={2}>
-            <Button onClick={loadDepartments} disabled={loading}>
-              {loading ? "Carregando..." : "Carregar mais"}
-            </Button>
-          </Box>
-        )}
+        <DepartmentList
+          collaborators={collaborators}
+          departments={departments}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onAdd={handleAdd}
+          onLoadMore={handleLoadMore}
+          loading={loading}
+          hasMore={hasMore}
+        />
 
         <DepartmentModal
           open={openModal}
@@ -349,17 +422,7 @@ export default function DepartmentsPage() {
               variant="contained"
               color="error"
               disabled={confirmNameInput !== departmentToDelete?.name}
-              onClick={async () => {
-                if (!departmentToDelete) return;
-                await deleteDepartment(departmentToDelete.id);
-                setConfirmDeleteDialogOpen(false);
-                setDepartmentToDelete(null);
-
-                setDepartments([]);
-                setLastDoc(undefined);
-                setHasMore(true);
-                await loadDepartments();
-              }}
+              onClick={handleConfirmDelete}
             >
               Excluir
             </Button>

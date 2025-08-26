@@ -106,7 +106,7 @@ export default function CollaboratorsPage() {
 
   const fetchAllDepartments = async () => {
     try {
-      const { departments: depts } = await fetchDepartments();
+      const depts = await fetchDepartments();
       setDepartments(depts);
     } catch (e) {
       console.error(e);

@@ -67,7 +67,8 @@ export const CollaboratorList = ({
     });
   }, [collaborators, filterName, filterEmail, filterDepartment]);
 
-  const allSelected = filtered.length > 0 && filtered.every((c) => selectedIds.includes(c.id));
+  const allSelected =
+    filtered.length > 0 && filtered.every((c) => selectedIds.includes(c.id));
 
   const handleSelect = (id: string) =>
     setSelectedIds((prev) =>
@@ -81,7 +82,13 @@ export const CollaboratorList = ({
   return (
     <Box sx={{ width: "100%", p: 2, mt: 3 }}>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4} px={4}>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={4}
+        px={4}
+      >
         <Typography variant="h5" sx={{ fontWeight: 600, color: "#222" }}>
           Colaboradores
         </Typography>
@@ -126,8 +133,20 @@ export const CollaboratorList = ({
 
       {/* Filtros */}
       <Box display="flex" gap={2} mb={2} px={4}>
-        <TextField label="Nome" variant="outlined" size="small" value={filterName} onChange={(e) => setFilterName(e.target.value)} />
-        <TextField label="Email" variant="outlined" size="small" value={filterEmail} onChange={(e) => setFilterEmail(e.target.value)} />
+        <TextField
+          label="Nome"
+          variant="outlined"
+          size="small"
+          value={filterName}
+          onChange={(e) => setFilterName(e.target.value)}
+        />
+        <TextField
+          label="Email"
+          variant="outlined"
+          size="small"
+          value={filterEmail}
+          onChange={(e) => setFilterEmail(e.target.value)}
+        />
         <TextField
           label="Departamento"
           variant="outlined"
@@ -139,22 +158,42 @@ export const CollaboratorList = ({
 
       {/* Tabela */}
       <Box sx={{ px: 4 }}>
-        <Paper elevation={0} sx={{ borderRadius: 2.5, boxShadow: "0px 2px 15px 0px #0000000D", overflow: "hidden" }}>
+        <Paper
+          elevation={0}
+          sx={{
+            borderRadius: 2.5,
+            boxShadow: "0px 2px 15px 0px #0000000D",
+            overflow: "hidden",
+          }}
+        >
           <Table sx={{ minWidth: 650, bgcolor: "#F9FAFB" }}>
             <TableHead>
               <TableRow sx={{ bgcolor: "#F9FAFB", height: 56 }}>
                 <TableCell padding="checkbox">
-                  <Checkbox checked={allSelected} onChange={handleSelectAll} color="primary" />
+                  <Checkbox
+                    checked={allSelected}
+                    onChange={handleSelectAll}
+                    color="primary"
+                  />
                 </TableCell>
                 {["Nome", "Email", "Departamento"].map((label) => (
-                  <TableCell key={label} sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}>
+                  <TableCell
+                    key={label}
+                    sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}
+                  >
                     {label} <ArrowDownwardIcon sx={{ fontSize: 16, ml: 0.5 }} />
                   </TableCell>
                 ))}
-                <TableCell align="right" sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}>
+                <TableCell
+                  align="right"
+                  sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}
+                >
                   Status <ArrowDownwardIcon sx={{ fontSize: 16, ml: 0.5 }} />
                 </TableCell>
-                <TableCell align="center" sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}>
+                <TableCell
+                  align="center"
+                  sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}
+                >
                   Ações
                 </TableCell>
               </TableRow>
@@ -164,12 +203,18 @@ export const CollaboratorList = ({
               {filtered.map((c) => (
                 <TableRow key={c.id} sx={{ background: "#fff", height: 64 }}>
                   <TableCell padding="checkbox">
-                    <Checkbox checked={selectedIds.includes(c.id)} onChange={() => handleSelect(c.id)} color="primary" />
+                    <Checkbox
+                      checked={selectedIds.includes(c.id)}
+                      onChange={() => handleSelect(c.id)}
+                      color="primary"
+                    />
                   </TableCell>
                   <TableCell>
                     <Box display="flex" alignItems="center" gap={1}>
                       <Avatar src={c.avatarUrl} alt={c.name} />
-                      <Typography sx={{ fontWeight: 500, color: "#222" }}>{c.name}</Typography>
+                      <Typography sx={{ fontWeight: 500, color: "#222" }}>
+                        {c.name}
+                      </Typography>
                     </Box>
                   </TableCell>
                   <TableCell>{c.email}</TableCell>
@@ -185,10 +230,21 @@ export const CollaboratorList = ({
                     />
                   </TableCell>
                   <TableCell align="center">
-                    <IconButton color="primary" onClick={() => onEditModal(c)} title="Editar">
+                    <IconButton
+                      color="primary"
+                      onClick={() => onEditModal(c)}
+                      title="Editar"
+                    >
                       <EditIcon />
                     </IconButton>
-                    <IconButton color="info" onClick={() => { setSelectedColab(c); setViewModalOpen(true); }} title="Visualizar">
+                    <IconButton
+                      color="info"
+                      onClick={() => {
+                        setSelectedColab(c);
+                        setViewModalOpen(true);
+                      }}
+                      title="Visualizar"
+                    >
                       <Visibility />
                     </IconButton>
                     <IconButton color="error" onClick={() => onDelete(c.id)}>
@@ -207,15 +263,19 @@ export const CollaboratorList = ({
             collaborators={collaborators}
             departments={departments}
           />
-        </Paper>
 
-        {hasMore && (
-          <Box display="flex" justifyContent="center" mt={3}>
-            <Button variant="outlined" onClick={onLoadMore} disabled={loading}>
-              {loading ? "Carregando..." : "Carregar mais"}
-            </Button>
-          </Box>
-        )}
+          {hasMore && (
+            <Box display="flex" justifyContent="center" mt={3} mb={3}>
+              <Button
+                variant="outlined"
+                onClick={onLoadMore}
+                disabled={loading}
+              >
+                {loading ? "Carregando..." : "Carregar mais"}
+              </Button>
+            </Box>
+          )}
+        </Paper>
       </Box>
     </Box>
   );

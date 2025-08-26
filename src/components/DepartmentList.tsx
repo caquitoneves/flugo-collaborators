@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import {
   Box,
   Table,
@@ -20,35 +20,37 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { Department, Collaborator } from "../types";
 
 type Props = {
-  departments: Department[];
   collaborators: Collaborator[];
-  filterName: string;
-  setFilterName: (name: string) => void;
+  departments: Department[];
   onEdit: (dept: Department) => void;
   onDelete: (id: string) => void;
   onAdd: () => void;
+  onLoadMore: () => void;
+  loading: boolean;
+  hasMore: boolean;
 };
 
 export const DepartmentList = ({
-  departments,
   collaborators,
-  filterName,
-  setFilterName,
+  departments,
   onEdit,
   onDelete,
   onAdd,
+  onLoadMore,
+  loading,
+  hasMore,
 }: Props) => {
+  const [filterName, setFilterName] = useState("");
+
   const filteredDepartments = useMemo(() => {
-    const uniqueDepts = Array.from(
-      new Map(departments.map((d) => [d.id, d])).values()
-    );
-    return uniqueDepts.filter((d) =>
+    return departments.filter((d) =>
       d.name.toLowerCase().includes(filterName.toLowerCase())
     );
   }, [departments, filterName]);
 
   return (
     <Box sx={{ width: "100%", p: 2, mt: 3 }}>
+      {/* Header */}
       <Box
         display="flex"
         justifyContent="space-between"
@@ -79,6 +81,7 @@ export const DepartmentList = ({
         </Button>
       </Box>
 
+      {/* Filtros */}
       <Box display="flex" gap={2} mb={2} px={4}>
         <TextField
           label="Filtrar por nome"
@@ -89,6 +92,7 @@ export const DepartmentList = ({
         />
       </Box>
 
+      {/* Tabela */}
       <Box sx={{ px: 4 }}>
         <Paper
           elevation={0}
@@ -128,7 +132,7 @@ export const DepartmentList = ({
 
             <TableBody>
               {filteredDepartments.map((dept) => (
-                <TableRow key={dept.id}>
+                <TableRow key={dept.id} sx={{ background: "#fff", height: 64 }}>
                   <TableCell>
                     <Typography sx={{ fontWeight: 500, color: "#222" }}>
                       {dept.name}
@@ -178,10 +182,10 @@ export const DepartmentList = ({
                   </TableCell>
 
                   <TableCell align="center">
-                    <IconButton color="primary" onClick={() => onEdit(dept)}>
+                    <IconButton color="primary" onClick={() => onEdit(dept)} title="Editar">
                       <EditIcon />
                     </IconButton>
-                    <IconButton color="error" onClick={() => onDelete(dept.id)}>
+                    <IconButton color="error" onClick={() => onDelete(dept.id)} title="Excluir">
                       <DeleteIcon />
                     </IconButton>
                   </TableCell>
@@ -189,6 +193,18 @@ export const DepartmentList = ({
               ))}
             </TableBody>
           </Table>
+
+          {hasMore && (
+            <Box display="flex" justifyContent="center" mt={3} mb={3}>
+              <Button
+                variant="outlined"
+                onClick={onLoadMore}
+                disabled={loading}
+              >
+                {loading ? "Carregando..." : "Carregar mais"}
+              </Button>
+            </Box>
+          )}
         </Paper>
       </Box>
     </Box>
