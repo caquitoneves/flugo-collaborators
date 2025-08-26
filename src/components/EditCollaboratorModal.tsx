@@ -1,155 +1,143 @@
+import React, { useEffect, useState } from "react";
 import {
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField,
   Button,
+  TextField,
   MenuItem,
   CircularProgress,
-  Snackbar,
-  Alert,
 } from "@mui/material";
-import { useState, useEffect } from "react";
-import { Collaborator } from "../types";
+import { Collaborator, Department } from "../types";
 
-const hierarchyLevels = ["Júnior", "Pleno", "Sênior", "Gestor"];
-
-type Props = {
+interface Props {
   open: boolean;
-  collaborator: Collaborator | null;
-  collaborators: Collaborator[];
-  loading: boolean;
   onClose: () => void;
-  onSave: (data: Partial<Collaborator>) => void;
-};
+  onSave: (collaborator: Collaborator) => void;
+  collaborator: Collaborator | null;
+  departments: Department[];
+  collaborators: Collaborator[];
+  loading?: boolean; // 🔹 adicionada
+}
 
-export function EditCollaboratorModal({
+export default function EditCollaboratorModal({
   open,
-  collaborator,
-  collaborators,
-  loading,
   onClose,
   onSave,
+  collaborator,
+  departments,
+  collaborators,
+  loading = false, // 🔹 valor default
 }: Props) {
   const [form, setForm] = useState<Partial<Collaborator>>({});
-  const [snackbar, setSnackbar] = useState<{ open: boolean; msg: string }>({ open: false, msg: "" });
 
   useEffect(() => {
-    if (collaborator) setForm(collaborator);
+    if (collaborator) {
+      setForm(collaborator);
+    } else {
+      setForm({});
+    }
   }, [collaborator]);
 
-  const handleChange = (field: keyof Collaborator) => (e: any) => {
-    setForm({ ...form, [field]: e.target.value });
-  };
+  const handleChange =
+    (field: keyof Collaborator) => (e: React.ChangeEvent<HTMLInputElement>) => {
+      setForm((prev) => ({ ...prev, [field]: e.target.value }));
+    };
 
-  const handleSubmit = () => {
-    if (!form.name || !form.email || !form.department) {
-      setSnackbar({ open: true, msg: "Preencha nome, e-mail e departamento." });
-      return;
-    }
-    onSave(form);
+  const handleSave = () => {
+    if (!form.name || !form.email || !form.departmentId) return;
+    onSave(form as Collaborator);
+    onClose();
   };
 
   return (
-    <>
-      <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-        <DialogTitle>Editar Colaborador</DialogTitle>
-        <DialogContent>
-          <TextField
-            label="Nome"
-            value={form.name || ""}
-            onChange={handleChange("name")}
-            fullWidth
-            margin="normal"
-            required
-          />
-          <TextField
-            label="E-mail"
-            value={form.email || ""}
-            onChange={handleChange("email")}
-            fullWidth
-            margin="normal"
-            required
-            disabled
-          />
-          <TextField
-            label="Departamento"
-            value={form.department || ""}
-            onChange={handleChange("department")}
-            fullWidth
-            margin="normal"
-            required
-          />
-          <TextField
-            label="Cargo"
-            value={form.role || ""}
-            onChange={handleChange("role")}
-            fullWidth
-            margin="normal"
-          />
-          <TextField
-            label="Data de Admissão"
-            type="date"
-            value={form.admissionDate || ""}
-            onChange={handleChange("admissionDate")}
-            fullWidth
-            margin="normal"
-            InputLabelProps={{ shrink: true }}
-          />
-          <TextField
-            label="Nível Hierárquico"
-            select
-            value={form.hierarchy || ""}
-            onChange={handleChange("hierarchy")}
-            fullWidth
-            margin="normal"
-          >
-            {hierarchyLevels.map(level => (
-              <MenuItem key={level} value={level}>{level}</MenuItem>
+    <Dialog open={open} onClose={onClose} fullWidth>
+      <DialogTitle>Editar Colaborador</DialogTitle>
+      <DialogContent>
+        <TextField
+          fullWidth
+          margin="normal"
+          label="Nome"
+          value={form.name || ""}
+          onChange={handleChange("name")}
+        />
+        <TextField
+          fullWidth
+          margin="normal"
+          label="Email"
+          value={form.email || ""}
+          onChange={handleChange("email")}
+        />
+
+        <TextField
+          select
+          fullWidth
+          margin="normal"
+          label="Departamento"
+          value={form.departmentId || ""}
+          onChange={handleChange("departmentId")}
+        >
+          {departments.map((d) => (
+            <MenuItem key={d.id} value={d.id}>
+              {d.name}
+            </MenuItem>
+          ))}
+        </TextField>
+
+        <TextField
+          select
+          fullWidth
+          margin="normal"
+          label="Senioridade"
+          value={form.seniority || ""}
+          onChange={handleChange("seniority")}
+        >
+          <MenuItem value="junior">Júnior</MenuItem>
+          <MenuItem value="pleno">Pleno</MenuItem>
+          <MenuItem value="senior">Sênior</MenuItem>
+          <MenuItem value="gestor">Gestor</MenuItem>
+        </TextField>
+
+        <TextField
+          select
+          fullWidth
+          margin="normal"
+          label="Gestor"
+          value={form.managerId || ""}
+          onChange={handleChange("managerId")}
+        >
+          {collaborators
+            .filter((c) => c.seniority === "gestor")
+            .map((c) => (
+              <MenuItem key={c.id} value={c.id}>
+                {c.name}
+              </MenuItem>
             ))}
-          </TextField>
-          <TextField
-            label="Gestor Responsável"
-            select
-            value={form.manager || ""}
-            onChange={handleChange("manager")}
-            fullWidth
-            margin="normal"
-            helperText="Selecione o colaborador gestor responsável"
-          >
-            {collaborators
-              .filter(c => c.hierarchy === "Gestor")
-              .map(c => (
-                <MenuItem key={c.id} value={c.id}>
-                  {c.name}
-                </MenuItem>
-              ))}
-          </TextField>
-          <TextField
-            label="Salário Base"
-            type="number"
-            value={form.salary || ""}
-            onChange={handleChange("salary")}
-            fullWidth
-            margin="normal"
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={onClose} disabled={loading}>Cancelar</Button>
-          <Button onClick={handleSubmit} variant="contained" disabled={loading}>
-            {loading ? <CircularProgress size={20} /> : "Salvar"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={3000}
-        onClose={() => setSnackbar({ open: false, msg: "" })}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-      >
-        <Alert severity="error">{snackbar.msg}</Alert>
-      </Snackbar>
-    </>
+        </TextField>
+
+        <TextField
+          fullWidth
+          margin="normal"
+          type="number"
+          label="Salário Base"
+          value={form.salaryBase || ""}
+          onChange={handleChange("salaryBase")}
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={loading}>
+          Cancelar
+        </Button>
+        <Button
+          onClick={handleSave}
+          variant="contained"
+          disabled={loading}
+          startIcon={loading ? <CircularProgress size={18} /> : null}
+        >
+          {loading ? "Salvando..." : "Salvar"}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }

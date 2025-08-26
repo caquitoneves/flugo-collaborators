@@ -50,7 +50,7 @@ export function DepartmentModal({
           required
         >
           {collaborators
-            .filter(c => c.hierarchy === "Gestor")
+            .filter(c => c.seniority === "gestor")
             .map(c => (
               <MenuItem key={c.id} value={c.id}>
                 {c.name}

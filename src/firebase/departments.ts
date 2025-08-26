@@ -9,8 +9,9 @@ export async function fetchDepartments(): Promise<Department[]> {
   return snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<Department, "id">) }));
 }
 
-export async function addDepartment(data: Omit<Department, "id">) {
-  await addDoc(ref, data);
+export async function addDepartment(data: Omit<Department, "id">): Promise<Department> {
+  const docRef = await addDoc(ref, data);
+  return { id: docRef.id, ...data };
 }
 
 export async function updateDepartment(id: string, data: Partial<Department>) {

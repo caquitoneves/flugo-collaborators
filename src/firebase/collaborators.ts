@@ -5,51 +5,49 @@ import {
   getDocs,
   query,
   where,
-  doc,
-  deleteDoc,
-  writeBatch,
   updateDoc,
+  deleteDoc,
+  doc,
+  writeBatch,
 } from "firebase/firestore";
 import { Collaborator } from "../types";
 
 const COLLABORATORS_COLLECTION = "collaborators";
 
-export const addCollaborator = async (data: Collaborator) => {
+export const addCollaborator = async (data: Omit<Collaborator, "id">) => {
   return await addDoc(collection(db, COLLABORATORS_COLLECTION), data);
 };
 
-export const getCollaborators = async (): Promise<Collaborator[]> => {
-  const snapshot = await getDocs(collection(db, COLLABORATORS_COLLECTION));
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...(doc.data() as Omit<Collaborator, "id">)
-  }));
+export const updateCollaborator = async (
+  id: string,
+  data: Partial<Collaborator>
+) => {
+  return await updateDoc(doc(db, COLLABORATORS_COLLECTION, id), data as any);
 };
 
-export const existsCollaboratorEmail = async (email: string): Promise<boolean> => {
-  const q = query(
-    collection(db, COLLABORATORS_COLLECTION),
-    where("email", "==", email)
-  );
-  const snapshot = await getDocs(q);
-  return !snapshot.empty;
-};
-
-// Exclusão individual
 export const deleteCollaborator = async (id: string) => {
   await deleteDoc(doc(db, COLLABORATORS_COLLECTION, id));
 };
 
-// Exclusão em massa
 export const deleteCollaboratorsBatch = async (ids: string[]) => {
   const batch = writeBatch(db);
-  ids.forEach((id) => {
-    batch.delete(doc(db, COLLABORATORS_COLLECTION, id));
-  });
+  ids.forEach((id) => batch.delete(doc(db, COLLABORATORS_COLLECTION, id)));
   await batch.commit();
 };
 
-// Edição de colaborador
-export const updateCollaborator = async (id: string, data: Partial<Collaborator>) => {
-  await updateDoc(doc(db, COLLABORATORS_COLLECTION, id), data);
+export const existsCollaboratorEmail = async (email: string) => {
+  const q = query(
+    collection(db, COLLABORATORS_COLLECTION),
+    where("email", "==", email)
+  );
+  const snap = await getDocs(q);
+  return !snap.empty;
+};
+
+export const getCollaborators = async (): Promise<Collaborator[]> => {
+  const snap = await getDocs(collection(db, COLLABORATORS_COLLECTION));
+  return snap.docs.map((d) => ({
+    id: d.id,
+    ...(d.data() as Omit<Collaborator, "id">),
+  }));
 };

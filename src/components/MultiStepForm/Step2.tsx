@@ -11,28 +11,30 @@ import {
 } from "@mui/material";
 import { useState, useEffect } from "react";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import { Collaborator } from "../../types";
+import { Collaborator, Department } from "../../types";
 
 type Step2Props = {
   next: (data: {
-    department: string;
+    seniority?: "junior" | "pleno" | "senior" | "gestor";
+    departmentId?: string;
+    departmentName?: string;
     role?: string;
     admissionDate?: string;
-    hierarchy?: string;
-    manager?: string;
-    salary?: string;
+    managerId?: string;
+    salaryBase?: number;
   }) => void;
   back: () => void;
   loading?: boolean;
   editData?: Collaborator | null;
-  collaborators: Collaborator[]; // Adicione esta prop!
+  collaborators: Collaborator[];
+  departments: Department[];
 };
 
-const hierarchyLevels = [
-  "Júnior",
-  "Pleno",
-  "Sênior",
-  "Gestor"
+const hierarchyLevels: { label: string; value: Collaborator["seniority"] }[] = [
+  { label: "Júnior", value: "junior" },
+  { label: "Pleno", value: "pleno" },
+  { label: "Sênior", value: "senior" },
+  { label: "Gestor", value: "gestor" },
 ];
 
 export function Step2({
@@ -41,33 +43,53 @@ export function Step2({
   loading = false,
   editData = null,
   collaborators = [],
+  departments = [],
 }: Step2Props) {
-  const [department, setDepartment] = useState(editData?.department || "");
+  const [seniority, setSeniority] = useState<Collaborator["seniority"] | "">(
+    editData?.seniority || ""
+  );
+  const [departmentId, setDepartmentId] = useState(editData?.departmentId || "");
   const [role, setRole] = useState(editData?.role || "");
   const [admissionDate, setAdmissionDate] = useState(editData?.admissionDate || "");
-  const [hierarchy, setHierarchy] = useState(editData?.hierarchy || "");
-  const [manager, setManager] = useState(editData?.manager || "");
-  const [salary, setSalary] = useState(editData?.salary || "");
-  const [error, setError] = useState<{ department?: string }>({});
+  const [managerId, setManagerId] = useState(editData?.managerId || "");
+  const [salaryBase, setSalaryBase] = useState<string>(
+    editData?.salaryBase?.toString() || ""
+  );
+  const [error, setError] = useState<{ seniority?: string; departmentId?: string }>({});
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMsg, setSnackbarMsg] = useState("");
 
+  // Atualiza gestor responsável automaticamente ao trocar departamento
+  useEffect(() => {
+    if (departmentId && seniority !== "gestor") {
+      const dept = departments.find((d) => d.id === departmentId);
+      setManagerId(dept?.manager || "");
+    } else {
+      setManagerId("");
+    }
+  }, [departmentId, departments, seniority]);
+
   useEffect(() => {
     if (editData) {
-      setDepartment(editData.department || "");
+      setSeniority(editData.seniority || "");
+      setDepartmentId(editData.departmentId || "");
       setRole(editData.role || "");
       setAdmissionDate(editData.admissionDate || "");
-      setHierarchy(editData.hierarchy || "");
-      setManager(editData.manager || "");
-      setSalary(editData.salary || "");
+      setManagerId(editData.managerId || "");
+      setSalaryBase(editData.salaryBase?.toString() || "");
     }
   }, [editData]);
 
   const validate = () => {
-    let valid = true, err: typeof error = {};
-    if (!department.trim()) {
+    let valid = true,
+      err: typeof error = {};
+    if (!seniority) {
       valid = false;
-      err.department = "Departamento é obrigatório.";
+      err.seniority = "Nível hierárquico é obrigatório.";
+    }
+    if (seniority !== "gestor" && !departmentId.trim()) {
+      valid = false;
+      err.departmentId = "Departamento é obrigatório.";
     }
     setError(err);
     return valid;
@@ -75,13 +97,17 @@ export function Step2({
 
   const onNext = () => {
     if (validate()) {
+      // Buscar o nome do departamento selecionado
+      const selectedDepartment = departments.find(d => d.id === departmentId);
+      
       next({
-        department,
+        seniority: seniority as Collaborator["seniority"],
+        departmentId: seniority !== "gestor" ? departmentId : undefined,
+        departmentName: seniority !== "gestor" ? selectedDepartment?.name : undefined, // Corrigido
         role,
         admissionDate,
-        hierarchy,
-        manager,
-        salary,
+        managerId: seniority !== "gestor" ? managerId : undefined,
+        salaryBase: salaryBase ? Number(salaryBase) : undefined,
       });
     } else {
       setSnackbarMsg("Preencha todos os campos obrigatórios.");
@@ -93,7 +119,9 @@ export function Step2({
     <Box sx={{ width: "100%", bgcolor: "#fff", minHeight: "100vh" }}>
       {/* Breadcrumb */}
       <Box sx={{ px: "64px", pt: "40px", display: "flex", alignItems: "center", mb: "8px" }}>
-        <Typography sx={{ color: "#565c68ff", fontSize: "15px", fontWeight: 500 }}>Colaboradores</Typography>
+        <Typography sx={{ color: "#565c68ff", fontSize: "15px", fontWeight: 500 }}>
+          Colaboradores
+        </Typography>
         <ChevronRightIcon sx={{ color: "#A3A3A3", fontSize: 16, ml: 0.5 }} />
         <Typography sx={{ color: "#A3A3A3", fontSize: "15px", fontWeight: 500 }}>
           {editData ? "Editar Colaborador" : "Cadastrar Colaborador"}
@@ -121,7 +149,7 @@ export function Step2({
             right: 30,
             top: "-8px",
             letterSpacing: "0.5px",
-            fontWeight: 500
+            fontWeight: 500,
           }}
         >
           50%
@@ -138,7 +166,7 @@ export function Step2({
           minHeight: "480px",
         }}
       >
-        {/* Stepper lateral pode ser igual ao Step1 */}
+        {/* Stepper lateral */}
         <Box sx={{ width: 170, mr: 8, pt: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", mb: "24px" }}>
             <Box
@@ -228,20 +256,46 @@ export function Step2({
             }}
           >
             <TextField
-              label="Departamento"
+              label="Nível Hierárquico"
               variant="outlined"
-              value={department}
-              onChange={e => setDepartment(e.target.value)}
+              select
+              value={seniority}
+              onChange={(e) => setSeniority(e.target.value as Collaborator["seniority"])}
               fullWidth
-              error={!!error.department}
-              helperText={error.department}
               required
-            />
+              error={!!error.seniority}
+              helperText={error.seniority}
+            >
+              {hierarchyLevels.map((level) => (
+                <MenuItem key={level.value} value={level.value}>
+                  {level.label}
+                </MenuItem>
+              ))}
+            </TextField>
+            {seniority && seniority !== "gestor" && (
+              <TextField
+                label="Departamento"
+                variant="outlined"
+                select
+                value={departmentId}
+                onChange={(e) => setDepartmentId(e.target.value)}
+                fullWidth
+                error={!!error.departmentId}
+                helperText={error.departmentId}
+                required
+              >
+                {departments.map((dept) => (
+                  <MenuItem key={dept.id} value={dept.id}>
+                    {dept.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
             <TextField
               label="Cargo"
               variant="outlined"
               value={role}
-              onChange={e => setRole(e.target.value)}
+              onChange={(e) => setRole(e.target.value)}
               fullWidth
             />
             <TextField
@@ -249,46 +303,28 @@ export function Step2({
               variant="outlined"
               type="date"
               value={admissionDate}
-              onChange={e => setAdmissionDate(e.target.value)}
+              onChange={(e) => setAdmissionDate(e.target.value)}
               fullWidth
               InputLabelProps={{ shrink: true }}
             />
-            <TextField
-              label="Nível Hierárquico"
-              variant="outlined"
-              select
-              value={hierarchy}
-              onChange={e => setHierarchy(e.target.value)}
-              fullWidth
-            >
-              {hierarchyLevels.map(level => (
-                <MenuItem key={level} value={level}>{level}</MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              label="Gestor Responsável"
-              variant="outlined"
-              select
-              value={manager}
-              onChange={e => setManager(e.target.value)}
-              fullWidth
-              helperText="Selecione o colaborador gestor responsável"
-              required
-            >
-              {collaborators
-                .filter(c => c.hierarchy === "Gestor")
-                .map(c => (
-                  <MenuItem key={c.id} value={c.id}>
-                    {c.name}
-                  </MenuItem>
-                ))}
-            </TextField>
+            {seniority && seniority !== "gestor" && departmentId && (
+              <TextField
+                label="Gestor Responsável"
+                variant="outlined"
+                value={
+                  managerId ? collaborators.find((c) => c.id === managerId)?.name || "" : ""
+                }
+                fullWidth
+                disabled
+                helperText="Gestor do departamento selecionado"
+              />
+            )}
             <TextField
               label="Salário Base"
               variant="outlined"
               type="number"
-              value={salary}
-              onChange={e => setSalary(e.target.value)}
+              value={salaryBase}
+              onChange={(e) => setSalaryBase(e.target.value)}
               fullWidth
             />
           </Box>
@@ -337,7 +373,13 @@ export function Step2({
           onClick={onNext}
           disabled={loading}
         >
-          {loading ? <CircularProgress size={24} sx={{ color: "#fff" }} /> : editData ? "Salvar" : "Finalizar"}
+          {loading ? (
+            <CircularProgress size={24} sx={{ color: "#fff" }} />
+          ) : editData ? (
+            "Salvar"
+          ) : (
+            "Finalizar"
+          )}
         </Button>
       </Box>
       {/* Snackbar para feedback de erro */}

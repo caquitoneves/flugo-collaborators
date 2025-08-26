@@ -17,13 +17,14 @@ import {
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { Collaborator } from "../types";
-import { useState, useMemo } from "react";
 import { Visibility } from "@mui/icons-material";
+import { useState, useMemo } from "react";
+import { Collaborator, Department } from "../types";
 import { ViewCollaboratorModal } from "./ViewCollaboratorModal";
 
 type Props = {
   collaborators: Collaborator[];
+  departments: Department[];
   onAdd: () => void;
   onEditModal: (collaborator: Collaborator) => void;
   onDelete: (id: string) => void;
@@ -35,6 +36,7 @@ type Props = {
 
 export const CollaboratorList = ({
   collaborators,
+  departments,
   onAdd,
   onEditModal,
   onDelete,
@@ -50,6 +52,26 @@ export const CollaboratorList = ({
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedColab, setSelectedColab] = useState<Collaborator | null>(null);
 
+  // Filtragem
+  const filteredCollaborators = useMemo(() => {
+    const depFilter = filterDepartment.toLowerCase();
+    const nameFilter = filterName.toLowerCase();
+    const emailFilter = filterEmail.toLowerCase();
+
+    return collaborators.filter((colab) => {
+      const nameMatch = colab.name.toLowerCase().includes(nameFilter);
+      const emailMatch = colab.email.toLowerCase().includes(emailFilter);
+      const deptValue = (colab.departmentName ?? "").toLowerCase();
+      const deptMatch = deptValue.includes(depFilter);
+      return nameMatch && emailMatch && deptMatch;
+    });
+  }, [collaborators, filterName, filterEmail, filterDepartment]);
+
+  // Seleção
+  const allSelected =
+    filteredCollaborators.length > 0 &&
+    filteredCollaborators.every((c) => selectedIds.includes(c.id));
+
   const handleSelect = (id: string) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((sid) => sid !== id) : [...prev, id]
@@ -58,30 +80,13 @@ export const CollaboratorList = ({
 
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.checked) {
-      setSelectedIds(collaborators.map((c) => c.id));
+      setSelectedIds(filteredCollaborators.map((c) => c.id));
     } else {
-      setSelectedIds([]);
+      setSelectedIds((prev) =>
+        prev.filter((id) => !filteredCollaborators.some((c) => c.id === id))
+      );
     }
   };
-
-  const allSelected =
-    collaborators.length > 0 && selectedIds.length === collaborators.length;
-
-  // Filtragem dos colaboradores
-  const filteredCollaborators = useMemo(() => {
-    return collaborators.filter((colab) => {
-      const nameMatch = colab.name
-        .toLowerCase()
-        .includes(filterName.toLowerCase());
-      const emailMatch = colab.email
-        .toLowerCase()
-        .includes(filterEmail.toLowerCase());
-      const deptMatch = colab.department
-        .toLowerCase()
-        .includes(filterDepartment.toLowerCase());
-      return nameMatch && emailMatch && deptMatch;
-    });
-  }, [collaborators, filterName, filterEmail, filterDepartment]);
 
   return (
     <Box sx={{ width: "100%", p: 2, mt: 3 }}>
@@ -178,82 +183,27 @@ export const CollaboratorList = ({
                     color="primary"
                   />
                 </TableCell>
-                <TableCell
-                  sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}
-                >
-                  Nome{" "}
-                  <ArrowDownwardIcon
-                    sx={{
-                      fontSize: 16,
-                      verticalAlign: "middle",
-                      ml: 0.5,
-                      color: "#6b7a8a",
-                    }}
-                  />
+                <TableCell sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}>
+                  Nome <ArrowDownwardIcon sx={{ fontSize: 16, ml: 0.5 }} />
                 </TableCell>
-                <TableCell
-                  sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}
-                >
-                  Email{" "}
-                  <ArrowDownwardIcon
-                    sx={{
-                      fontSize: 16,
-                      verticalAlign: "middle",
-                      ml: 0.5,
-                      color: "#6b7a8a",
-                    }}
-                  />
+                <TableCell sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}>
+                  Email <ArrowDownwardIcon sx={{ fontSize: 16, ml: 0.5 }} />
                 </TableCell>
-                <TableCell
-                  sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}
-                >
-                  Departamento{" "}
-                  <ArrowDownwardIcon
-                    sx={{
-                      fontSize: 16,
-                      verticalAlign: "middle",
-                      ml: 0.5,
-                      color: "#6b7a8a",
-                    }}
-                  />
+                <TableCell sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}>
+                  Departamento <ArrowDownwardIcon sx={{ fontSize: 16, ml: 0.5 }} />
                 </TableCell>
-                <TableCell
-                  align="right"
-                  sx={{
-                    fontWeight: 600,
-                    color: "#768591",
-                    fontSize: 14,
-                    pr: 2,
-                  }}
-                >
-                  Status{" "}
-                  <ArrowDownwardIcon
-                    sx={{
-                      fontSize: 14,
-                      verticalAlign: "middle",
-                      ml: 0.5,
-                      color: "#6b7a8a",
-                    }}
-                  />
+                <TableCell align="right" sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}>
+                  Status <ArrowDownwardIcon sx={{ fontSize: 16, ml: 0.5 }} />
                 </TableCell>
-                <TableCell
-                  align="center"
-                  sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}
-                >
+                <TableCell align="center" sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}>
                   Ações
                 </TableCell>
               </TableRow>
             </TableHead>
+
             <TableBody>
               {filteredCollaborators.map((colab) => (
-                <TableRow
-                  key={colab.id}
-                  sx={{
-                    background: "#fff",
-                    height: 64,
-                    "&:not(:last-child)": { borderBottom: "1px solid #ECECEC" },
-                  }}
-                >
+                <TableRow key={colab.id} sx={{ background: "#fff", height: 64 }}>
                   <TableCell padding="checkbox">
                     <Checkbox
                       checked={selectedIds.includes(colab.id)}
@@ -263,42 +213,21 @@ export const CollaboratorList = ({
                   </TableCell>
                   <TableCell>
                     <Box display="flex" alignItems="center" gap={1}>
-                      <Avatar
-                        src={colab.avatarUrl}
-                        alt={colab.name}
-                        sx={{
-                          width: 40,
-                          height: 40,
-                          mr: 1,
-                          boxShadow: "0px 2px 10px 0px #0000000D",
-                        }}
-                      />
+                      <Avatar src={colab.avatarUrl} alt={colab.name} />
                       <Typography sx={{ fontWeight: 500, color: "#222" }}>
                         {colab.name}
                       </Typography>
                     </Box>
                   </TableCell>
-                  <TableCell>
-                    <Typography sx={{ color: "#525252", fontSize: 15 }}>
-                      {colab.email}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography sx={{ color: "#525252", fontSize: 15 }}>
-                      {colab.department}
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="right" sx={{ pr: 0 }}>
+                  <TableCell>{colab.email}</TableCell>
+                  <TableCell>{colab.departmentName ?? ""}</TableCell>
+                  <TableCell align="right">
                     <Chip
                       label={colab.status === "ativo" ? "Ativo" : "Inativo"}
                       sx={{
-                        bgcolor:
-                          colab.status === "ativo" ? "#DEF7EC" : "#FEE2E2",
+                        bgcolor: colab.status === "ativo" ? "#DEF7EC" : "#FEE2E2",
                         color: colab.status === "ativo" ? "#22C55E" : "#EF4444",
                         fontWeight: 600,
-                        fontSize: 12,
-                        borderRadius: 0.5,
-                        mr: 2,
                       }}
                     />
                   </TableCell>
@@ -320,10 +249,7 @@ export const CollaboratorList = ({
                     >
                       <Visibility />
                     </IconButton>
-                    <IconButton
-                      color="error"
-                      onClick={() => onDelete(colab.id)}
-                    >
+                    <IconButton color="error" onClick={() => onDelete(colab.id)}>
                       <DeleteIcon />
                     </IconButton>
                   </TableCell>
@@ -335,6 +261,8 @@ export const CollaboratorList = ({
               open={viewModalOpen}
               onClose={() => setViewModalOpen(false)}
               collaborator={selectedColab}
+              collaborators={collaborators}
+              departments={departments} // 👈 agora passando a lista real
             />
           </Table>
         </Paper>
