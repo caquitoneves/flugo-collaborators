@@ -2,6 +2,7 @@ import { ThemeProvider, CssBaseline } from "@mui/material";
 import theme from "./theme";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
+import Register from "./pages/Register";
 import CollaboratorsPage from "./pages/Collaborators";
 import DepartmentsPage from "./pages/Departments";
 import NotFound from "./pages/NotFound";
@@ -14,6 +15,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} /> 
           <Route
             path="/colaboradores"
             element={
@@ -30,7 +32,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-          {/* Redireciona "/" para "/colaboradores" */}
           <Route path="/" element={<Navigate to="/colaboradores" replace />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

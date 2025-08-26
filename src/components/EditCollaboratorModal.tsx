@@ -124,7 +124,20 @@ export default function EditCollaboratorModal({
           value={form.salaryBase || ""}
           onChange={handleChange("salaryBase")}
         />
+        
+        <TextField
+          select
+          fullWidth
+          margin="normal"
+          label="Status"
+          value={form.status || "ativo"}
+          onChange={handleChange("status")}
+        >
+          <MenuItem value="ativo">Ativo</MenuItem>
+          <MenuItem value="inativo">Inativo</MenuItem>
+        </TextField>
       </DialogContent>
+
       <DialogActions>
         <Button onClick={onClose} disabled={loading}>
           Cancelar
