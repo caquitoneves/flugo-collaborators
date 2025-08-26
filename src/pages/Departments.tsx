@@ -7,7 +7,8 @@ import {
   startAfter,
   QueryDocumentSnapshot,
 } from "firebase/firestore";
-import { db } from "../firebase/config";import { useState, useEffect } from "react";
+import { db } from "../firebase/config";
+import { useState, useEffect } from "react";
 import {
   Box,
   Snackbar,
@@ -23,6 +24,7 @@ import {
   Chip,
   Avatar,
 } from "@mui/material";
+import { motion, AnimatePresence } from "framer-motion";
 import { Sidebar } from "../components/Sidebar";
 import { Navbar } from "../components/Navbar";
 import { DepartmentList } from "../components/DepartmentList";
@@ -45,6 +47,7 @@ export default function DepartmentsPage() {
   const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const [openModal, setOpenModal] = useState(false);
   const [editDepartment, setEditDepartment] = useState<Department | null>(null);
@@ -72,7 +75,7 @@ export default function DepartmentsPage() {
   });
 
   // =====================
-  // Fetch functions with pagination
+  // Fetch funções com paginação
   // =====================
   const fetchDepartmentsPaged = async (loadMore = false) => {
     if (loading) return;
@@ -98,6 +101,7 @@ export default function DepartmentsPage() {
       setFeedback({ open: true, message: "Erro ao carregar departamentos." });
     } finally {
       setLoading(false);
+      if (initialLoading) setInitialLoading(false);
     }
   };
 
@@ -283,9 +287,6 @@ export default function DepartmentsPage() {
     if (!loading && hasMore) fetchDepartmentsPaged(true);
   };
 
-  // =====================
-  // JSX
-  // =====================
   return (
     <Box
       sx={{
@@ -305,16 +306,25 @@ export default function DepartmentsPage() {
       >
         <Navbar />
 
-        <DepartmentList
-          collaborators={collaborators}
-          departments={departments}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onAdd={handleAdd}
-          onLoadMore={handleLoadMore}
-          loading={loading}
-          hasMore={hasMore}
-        />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key="department-list"
+            initial={{ opacity: 0, y: 30 }}
+            animate={!initialLoading ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <DepartmentList
+              collaborators={collaborators}
+              departments={departments}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onAdd={handleAdd}
+              onLoadMore={handleLoadMore}
+              loading={loading}
+              hasMore={hasMore}
+            />
+          </motion.div>
+        </AnimatePresence>
 
         <DepartmentModal
           open={openModal}

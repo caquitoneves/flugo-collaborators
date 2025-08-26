@@ -1,6 +1,8 @@
 import { ThemeProvider, CssBaseline } from "@mui/material";
 import theme from "./theme";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { onUserStateChange } from "./firebase/auth";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import CollaboratorsPage from "./pages/Collaborators";
@@ -9,6 +11,22 @@ import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./routes/ProtectedRoute";
 
 function App() {
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onUserStateChange((user) => {
+      setUser(user);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  if (loading) {
+    // Você pode colocar um loading spinner aqui se quiser
+    return <div>Carregando...</div>;
+  }
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -32,7 +50,13 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/" element={<Navigate to="/colaboradores" replace />} />
+          {/* Rota raiz corrigida */}
+          <Route 
+            path="/" 
+            element={
+              user ? <Navigate to="/colaboradores" replace /> : <Navigate to="/login" replace />
+            } 
+          />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

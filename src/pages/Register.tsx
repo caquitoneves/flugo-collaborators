@@ -11,8 +11,8 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  // Regex simples para validar prefixo de e-mail (somente letras, números, pontos, hífens e underscores)
   const emailPrefixRegex = /^[a-zA-Z0-9._-]+$/;
-  const fullEmail = emailPrefix ? `${emailPrefix}@flugo.com.br` : "";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,6 +27,8 @@ export default function Register() {
       setError("As senhas não coincidem.");
       return;
     }
+
+    const fullEmail = `${emailPrefix}@flugo.com.br`;
 
     try {
       await signup(fullEmail, password, name);

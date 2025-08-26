@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Box, Snackbar, Alert } from "@mui/material";
+import { motion, AnimatePresence } from "framer-motion";
 import { Sidebar } from "../components/Sidebar";
 import { Navbar } from "../components/Navbar";
 import { CollaboratorList } from "../components/CollaboratorList";
@@ -45,6 +46,7 @@ export default function CollaboratorsPage() {
   const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const [formStep, setFormStep] = useState<1 | 2 | null>(null);
   const [formData, setFormData] = useState<Partial<
@@ -101,6 +103,7 @@ export default function CollaboratorsPage() {
       });
     } finally {
       setLoading(false);
+      if (initialLoading) setInitialLoading(false);
     }
   };
 
@@ -345,9 +348,13 @@ export default function CollaboratorsPage() {
     if (!loading && hasMore) fetchCollaboratorsPaged(true);
   };
 
-  // =======================
-  // JSX
-  // =======================
+  // Configurações de animação (sem variants para evitar problemas de tipagem)
+  const fadeInUp = {
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.4 }
+  };
+
   return (
     <Box
       sx={{
@@ -367,35 +374,60 @@ export default function CollaboratorsPage() {
       >
         <Navbar />
 
-        {formStep === null ? (
-          <CollaboratorList
-            collaborators={collaborators}
-            departments={departments}
-            onAdd={handleAdd}
-            onEditModal={handleEditModalOpen}
-            onDelete={handleDelete}
-            onDeleteSelected={handleDeleteSelected}
-            onLoadMore={handleLoadMore}
-            loading={loading}
-            hasMore={hasMore}
-          />
-        ) : formStep === 1 ? (
-          <Step1
-            next={handleNextStep1}
-            back={handleBack}
-            loading={loading}
-            editData={editCollaborator || undefined}
-          />
-        ) : (
-          <Step2
-            next={handleFinish}
-            back={handleBack}
-            loading={loading}
-            editData={editCollaborator || undefined}
-            collaborators={collaborators}
-            departments={departments}
-          />
-        )}
+        <AnimatePresence mode="wait">
+          {formStep === null ? (
+            <motion.div
+              key="collaborator-list"
+              initial={{ opacity: 0, y: 30 }}
+              animate={!initialLoading ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <CollaboratorList
+                collaborators={collaborators}
+                departments={departments}
+                onAdd={handleAdd}
+                onEditModal={handleEditModalOpen}
+                onDelete={handleDelete}
+                onDeleteSelected={handleDeleteSelected}
+                onLoadMore={handleLoadMore}
+                loading={loading}
+                hasMore={hasMore}
+              />
+            </motion.div>
+          ) : formStep === 1 ? (
+            <motion.div
+              key="step1"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Step1
+                next={handleNextStep1}
+                back={handleBack}
+                loading={loading}
+                editData={editCollaborator || undefined}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="step2"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Step2
+                next={handleFinish}
+                back={handleBack}
+                loading={loading}
+                editData={editCollaborator || undefined}
+                collaborators={collaborators}
+                departments={departments}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <EditCollaboratorModal
           open={editModalOpen}

@@ -1,40 +1,22 @@
 import { useState } from "react";
-import { Box, Button, TextField, Typography, Paper, Alert, Link, InputAdornment } from "@mui/material";
-import { signup } from "../firebase/auth";
+import { Box, Button, TextField, Typography, Paper, Alert, Link } from "@mui/material";
+import { login } from "../firebase/auth";
 import { useNavigate } from "react-router-dom";
 
-export default function Register() {
-  const navigate = useNavigate();
-  const [name, setName] = useState("");
-  const [emailPrefix, setEmailPrefix] = useState("");
+export default function Login() {
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-
-  // Regex simples para validar prefixo de e-mail (somente letras, números, pontos, hífens e underscores)
-  const emailPrefixRegex = /^[a-zA-Z0-9._-]+$/;
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
-    if (!emailPrefixRegex.test(emailPrefix)) {
-      setError("O e-mail deve conter apenas letras, números, pontos, hífens ou underscores.");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError("As senhas não coincidem.");
-      return;
-    }
-
-    const fullEmail = `${emailPrefix}@flugo.com.br`;
-
     try {
-      await signup(fullEmail, password, name);
+      await login(email, password);
       navigate("/");
     } catch (err: any) {
-      setError("Erro ao criar conta. Tente novamente.");
+      setError("E-mail ou senha inválidos.");
     }
   };
 
@@ -68,37 +50,20 @@ export default function Register() {
             style={{ width: 120, marginBottom: 8 }}
           />
         </Box>
-
         <Typography variant="h5" mb={2} align="center" sx={{ fontWeight: 700, color: "#22C55E" }}>
-          Criar conta
+          Entre na sua conta
         </Typography>
-
         <form onSubmit={handleSubmit} style={{ width: "100%" }}>
           <TextField
-            label="Nome"
-            type="text"
-            fullWidth
-            margin="normal"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            required
-            sx={{ bgcolor: "#F9FAFB", borderRadius: 2 }}
-          />
-
-          <TextField
             label="E-mail"
-            type="text"
+            type="email"
             fullWidth
             margin="normal"
-            value={emailPrefix}
-            onChange={e => setEmailPrefix(e.target.value)}
+            value={email}
+            onChange={e => setEmail(e.target.value)}
             required
             sx={{ bgcolor: "#F9FAFB", borderRadius: 2 }}
-            InputProps={{
-              endAdornment: <InputAdornment position="end">@flugo.com.br</InputAdornment>,
-            }}
           />
-
           <TextField
             label="Senha"
             type="password"
@@ -109,23 +74,11 @@ export default function Register() {
             required
             sx={{ bgcolor: "#F9FAFB", borderRadius: 2 }}
           />
-          <TextField
-            label="Confirmar Senha"
-            type="password"
-            fullWidth
-            margin="normal"
-            value={confirmPassword}
-            onChange={e => setConfirmPassword(e.target.value)}
-            required
-            sx={{ bgcolor: "#F9FAFB", borderRadius: 2 }}
-          />
-
           {error && (
             <Alert severity="error" sx={{ mt: 2 }}>
               {error}
             </Alert>
           )}
-
           <Button
             type="submit"
             variant="contained"
@@ -142,19 +95,19 @@ export default function Register() {
               "&:hover": { bgcolor: "#16A34A" },
             }}
           >
-            Cadastrar
+            Entrar
           </Button>
         </form>
 
         <Typography variant="body2" mt={3}>
-          Já tem conta?{" "}
+          Não tem conta?{" "}
           <Link
             component="button"
             underline="hover"
             sx={{ fontWeight: 600, color: "#22C55E" }}
-            onClick={() => navigate("/login")}
+            onClick={() => navigate("/register")}
           >
-            Entrar
+            Criar conta
           </Link>
         </Typography>
       </Paper>
