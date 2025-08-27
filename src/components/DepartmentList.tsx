@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Box,
   Table,
@@ -25,7 +25,10 @@ type Props = {
   onEdit: (dept: Department) => void;
   onDelete: (id: string) => void;
   onAdd: () => void;
-  fetchMoreDepartments: (page: number, pageSize: number) => Promise<Department[]>;
+  fetchMoreDepartments: (
+    page: number,
+    pageSize: number
+  ) => Promise<Department[]>;
 };
 
 const PAGE_SIZE = 5;
@@ -39,36 +42,40 @@ export const DepartmentList = ({
   fetchMoreDepartments,
 }: Props) => {
   const [filterName, setFilterName] = useState("");
-  const [paginatedDepartments, setPaginatedDepartments] = useState<Department[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [hasNext, setHasNext] = useState(false);
-  const [loading, setLoading] = useState(false);
 
-  // Filtra departamentos
+  // Aplica filtro no array completo
   const filteredDepartments = useMemo(() => {
-    return paginatedDepartments.filter((d) =>
-      d.name.toLowerCase().includes(filterName.toLowerCase())
-    );
-  }, [paginatedDepartments, filterName]);
+    const lowerFilter = filterName.toLowerCase();
 
-  const loadPage = async (page: number) => {
-    setLoading(true);
-    try {
-      const data = await fetchMoreDepartments(page, PAGE_SIZE);
-      setPaginatedDepartments(data);
-      setCurrentPage(page);
-      setHasNext(data.length === PAGE_SIZE);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
+    return departments.filter((dept) => {
+      // Verifica se o nome do departamento corresponde
+      const matchesDeptName = dept.name.toLowerCase().includes(lowerFilter);
 
-  // Inicializa a primeira página
+      // Verifica se algum colaborador pertence a esse departamento e corresponde ao filtro
+      const matchesColabName = collaborators
+        .filter((c) => c.departmentId === dept.id)
+        .some((c) => c.name.toLowerCase().includes(lowerFilter));
+
+      // Retorna true se pelo menos um dos dois bater
+      return matchesDeptName || matchesColabName;
+    });
+  }, [departments, collaborators, filterName]);
+
+  const totalPages = Math.ceil(filteredDepartments.length / PAGE_SIZE);
+
+  // Retorna só os departamentos da página atual
+  const paginatedDepartments = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredDepartments.slice(start, start + PAGE_SIZE);
+  }, [filteredDepartments, currentPage]);
+
+  // Ajusta a página se o filtro reduzir os resultados
   useEffect(() => {
-    loadPage(1);
-  }, [departments]);
+    if (currentPage > totalPages) {
+      setCurrentPage(1);
+    }
+  }, [totalPages]);
 
   return (
     <Box sx={{ width: "100%", p: 2, mt: 3 }}>
@@ -127,14 +134,21 @@ export const DepartmentList = ({
           <Table sx={{ minWidth: 650, bgcolor: "#F9FAFB" }}>
             <TableHead>
               <TableRow sx={{ bgcolor: "#F9FAFB", height: 56 }}>
-                <TableCell sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}>
+                <TableCell
+                  sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}
+                >
                   Nome <ArrowDownwardIcon sx={{ fontSize: 16, ml: 0.5 }} />
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}>
+                <TableCell
+                  sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}
+                >
                   Gestor <ArrowDownwardIcon sx={{ fontSize: 16, ml: 0.5 }} />
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}>
-                  Colaboradores <ArrowDownwardIcon sx={{ fontSize: 16, ml: 0.5 }} />
+                <TableCell
+                  sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}
+                >
+                  Colaboradores{" "}
+                  <ArrowDownwardIcon sx={{ fontSize: 16, ml: 0.5 }} />
                 </TableCell>
                 <TableCell
                   align="center"
@@ -146,30 +160,34 @@ export const DepartmentList = ({
             </TableHead>
 
             <TableBody>
-              {filteredDepartments.map((dept) => (
+              {paginatedDepartments.map((dept) => (
                 <TableRow key={dept.id} sx={{ background: "#fff", height: 64 }}>
                   <TableCell>
                     <Typography sx={{ fontWeight: 500, color: "#222" }}>
                       {dept.name}
                     </Typography>
                   </TableCell>
-
                   <TableCell>
                     {collaborators.find((c) => c.id === dept.manager) ? (
                       <Box display="flex" alignItems="center" gap={1}>
                         <Avatar
-                          src={collaborators.find((c) => c.id === dept.manager)?.avatarUrl}
+                          src={
+                            collaborators.find((c) => c.id === dept.manager)
+                              ?.avatarUrl
+                          }
                           sx={{ width: 32, height: 32 }}
                         />
                         <Typography sx={{ fontWeight: 500 }}>
-                          {collaborators.find((c) => c.id === dept.manager)?.name}
+                          {
+                            collaborators.find((c) => c.id === dept.manager)
+                              ?.name
+                          }
                         </Typography>
                       </Box>
                     ) : (
                       <Chip label="Não definido" color="warning" />
                     )}
                   </TableCell>
-
                   <TableCell>
                     <Box display="flex" gap={1} flexWrap="wrap">
                       {collaborators
@@ -177,19 +195,31 @@ export const DepartmentList = ({
                         .map((colab) => (
                           <Chip
                             key={colab.id}
-                            avatar={<Avatar src={colab.avatarUrl} sx={{ width: 24, height: 24 }} />}
+                            avatar={
+                              <Avatar
+                                src={colab.avatarUrl}
+                                sx={{ width: 24, height: 24 }}
+                              />
+                            }
                             label={colab.name}
                             sx={{ mb: 0.5 }}
                           />
                         ))}
                     </Box>
                   </TableCell>
-
                   <TableCell align="center">
-                    <IconButton color="primary" onClick={() => onEdit(dept)} title="Editar">
+                    <IconButton
+                      color="primary"
+                      onClick={() => onEdit(dept)}
+                      title="Editar"
+                    >
                       <EditIcon />
                     </IconButton>
-                    <IconButton color="error" onClick={() => onDelete(dept.id)} title="Excluir">
+                    <IconButton
+                      color="error"
+                      onClick={() => onDelete(dept.id)}
+                      title="Excluir"
+                    >
                       <DeleteIcon />
                     </IconButton>
                   </TableCell>
@@ -199,18 +229,24 @@ export const DepartmentList = ({
           </Table>
 
           {/* Paginação */}
-          <Box display="flex" justifyContent="space-between" mt={3} mb={3} px={2}>
+          <Box
+            display="flex"
+            justifyContent="space-between"
+            mt={3}
+            mb={3}
+            px={2}
+          >
             <Button
               variant="outlined"
-              onClick={() => loadPage(currentPage - 1)}
-              disabled={currentPage === 1 || loading}
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              disabled={currentPage === 1}
             >
               Anterior
             </Button>
             <Button
               variant="outlined"
-              onClick={() => loadPage(currentPage + 1)}
-              disabled={!hasNext || loading}
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+              disabled={currentPage === totalPages || totalPages === 0}
             >
               Próximo
             </Button>
