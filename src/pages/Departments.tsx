@@ -68,9 +68,14 @@ export default function DepartmentsPage() {
     useState<Department | null>(null);
   const [confirmNameInput, setConfirmNameInput] = useState("");
 
-  const [feedback, setFeedback] = useState<{ open: boolean; message: string }>({
+  const [feedback, setFeedback] = useState<{
+    open: boolean;
+    message: string;
+    severity: "success" | "error" | "warning";
+  }>({
     open: false,
     message: "",
+    severity: "success",
   });
 
   // =====================
@@ -105,7 +110,11 @@ export default function DepartmentsPage() {
       return newData;
     } catch (error) {
       console.error(error);
-      setFeedback({ open: true, message: "Erro ao carregar departamentos." });
+      setFeedback({
+        open: true,
+        message: "Erro ao carregar departamentos.",
+        severity: "error",
+      });
       return [];
     } finally {
       setLoading(false);
@@ -121,7 +130,11 @@ export default function DepartmentsPage() {
       setCollaborators(cols);
     } catch (error) {
       console.error("Erro ao carregar colaboradores:", error);
-      setFeedback({ open: true, message: "Erro ao carregar colaboradores." });
+      setFeedback({
+        open: true,
+        message: "Erro ao carregar colaboradores.",
+        severity: "error",
+      });
     }
   };
 
@@ -160,6 +173,7 @@ export default function DepartmentsPage() {
       setFeedback({
         open: true,
         message: "Nome do departamento é obrigatório!",
+        severity: "warning",
       });
       return;
     }
@@ -173,6 +187,7 @@ export default function DepartmentsPage() {
         setFeedback({
           open: true,
           message: "Já existe um departamento com este nome!",
+          severity: "warning",
         });
         return;
       }
@@ -184,6 +199,7 @@ export default function DepartmentsPage() {
         setFeedback({
           open: true,
           message: "Departamento atualizado com sucesso!",
+          severity: "success",
         });
       } else {
         const newDept = await addDepartment({ ...form });
@@ -191,6 +207,7 @@ export default function DepartmentsPage() {
         setFeedback({
           open: true,
           message: "Departamento criado com sucesso!",
+          severity: "success",
         });
       }
 
@@ -217,7 +234,11 @@ export default function DepartmentsPage() {
       await refreshData();
     } catch (error) {
       console.error(error);
-      setFeedback({ open: true, message: "Erro ao salvar departamento." });
+      setFeedback({
+        open: true,
+        message: "Erro ao salvar departamento.",
+        severity: "error",
+      });
     }
   };
 
@@ -264,12 +285,17 @@ export default function DepartmentsPage() {
         open: true,
         message:
           "Colaboradores transferidos e departamento excluído com sucesso!",
+        severity: "success",
       });
 
       await refreshData();
     } catch (error) {
       console.error(error);
-      setFeedback({ open: true, message: "Erro ao transferir colaboradores." });
+      setFeedback({
+        open: true,
+        message: "Erro ao transferir colaboradores.",
+        severity: "error",
+      });
     }
   };
 
@@ -283,11 +309,16 @@ export default function DepartmentsPage() {
       setFeedback({
         open: true,
         message: "Departamento excluído com sucesso!",
+        severity: "success",
       });
       await refreshData();
     } catch (error) {
       console.error(error);
-      setFeedback({ open: true, message: "Erro ao excluir departamento." });
+      setFeedback({
+        open: true,
+        message: "Erro ao excluir departamento.",
+        severity: "error",
+      });
     }
   };
 
@@ -444,10 +475,12 @@ export default function DepartmentsPage() {
         <Snackbar
           open={feedback.open}
           autoHideDuration={4000}
-          onClose={() => setFeedback({ open: false, message: "" })}
+          onClose={() =>
+            setFeedback({ open: false, message: "", severity: "success" })
+          }
           anchorOrigin={{ vertical: "top", horizontal: "center" }}
         >
-          <Alert severity="success">{feedback.message}</Alert>
+          <Alert severity={feedback.severity}>{feedback.message}</Alert>
         </Snackbar>
       </Box>
     </Box>

@@ -46,11 +46,11 @@ export default function CollaboratorsPage() {
 
   const [feedback, setFeedback] = useState<{
     open: boolean;
-    type: "success" | "error";
+    severity: "success" | "error" | "warning";
     message: string;
   }>({
     open: false,
-    type: "success",
+    severity: "success",
     message: "",
   });
 
@@ -78,7 +78,7 @@ export default function CollaboratorsPage() {
       console.error(e);
       setFeedback({
         open: true,
-        type: "error",
+        severity: "error",
         message: "Erro ao carregar colaboradores.",
       });
     } finally {
@@ -95,7 +95,7 @@ export default function CollaboratorsPage() {
       console.error(e);
       setFeedback({
         open: true,
-        type: "error",
+        severity: "error",
         message: "Erro ao carregar departamentos.",
       });
     }
@@ -138,7 +138,7 @@ export default function CollaboratorsPage() {
     if (!formData?.email || !formData?.name) {
       setFeedback({
         open: true,
-        type: "error",
+        severity: "warning",
         message: "Preencha nome e e-mail.",
       });
       return;
@@ -177,14 +177,14 @@ export default function CollaboratorsPage() {
         await updateCollaborator(editCollaborator.id, collaboratorToSave);
         setFeedback({
           open: true,
-          type: "success",
+          severity: "success",
           message: "Colaborador atualizado com sucesso!",
         });
       } else {
         if (await existsCollaboratorEmail(formData.email!)) {
           setFeedback({
             open: true,
-            type: "error",
+            severity: "warning",
             message: "Já existe colaborador com este e-mail!",
           });
           return;
@@ -192,7 +192,7 @@ export default function CollaboratorsPage() {
         await addCollaborator(collaboratorToSave);
         setFeedback({
           open: true,
-          type: "success",
+          severity: "success",
           message: "Colaborador cadastrado com sucesso!",
         });
       }
@@ -206,7 +206,7 @@ export default function CollaboratorsPage() {
       console.error(e);
       setFeedback({
         open: true,
-        type: "error",
+        severity: "error",
         message: "Erro ao salvar colaborador.",
       });
     } finally {
@@ -251,7 +251,7 @@ export default function CollaboratorsPage() {
       await updateCollaborator(selectedCollaborator.id, patch);
       setFeedback({
         open: true,
-        type: "success",
+        severity: "success",
         message: "Colaborador atualizado com sucesso!",
       });
       await fetchCollaborators();
@@ -261,7 +261,7 @@ export default function CollaboratorsPage() {
       console.error(e);
       setFeedback({
         open: true,
-        type: "error",
+        severity: "error",
         message: "Erro ao editar colaborador.",
       });
     } finally {
@@ -278,7 +278,7 @@ export default function CollaboratorsPage() {
       await deleteCollaborator(id);
       setFeedback({
         open: true,
-        type: "success",
+        severity: "success",
         message: "Colaborador excluído com sucesso!",
       });
       await fetchCollaborators();
@@ -287,7 +287,7 @@ export default function CollaboratorsPage() {
       console.error(e);
       setFeedback({
         open: true,
-        type: "error",
+        severity: "error",
         message: "Erro ao excluir colaborador.",
       });
     } finally {
@@ -300,7 +300,7 @@ export default function CollaboratorsPage() {
       await deleteCollaboratorsBatch(ids);
       setFeedback({
         open: true,
-        type: "success",
+        severity: "success",
         message: "Colaboradores excluídos com sucesso!",
       });
       await fetchCollaborators();
@@ -309,7 +309,7 @@ export default function CollaboratorsPage() {
       console.error(e);
       setFeedback({
         open: true,
-        type: "error",
+        severity: "error",
         message: "Erro ao excluir colaboradores.",
       });
     } finally {
@@ -393,7 +393,7 @@ export default function CollaboratorsPage() {
           onClose={() => setFeedback((f) => ({ ...f, open: false }))}
           anchorOrigin={{ vertical: "top", horizontal: "center" }}
         >
-          <Alert severity={feedback.type}>{feedback.message}</Alert>
+          <Alert severity={feedback.severity}>{feedback.message}</Alert>
         </Snackbar>
       </Box>
     </Box>
