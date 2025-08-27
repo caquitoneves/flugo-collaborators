@@ -47,7 +47,6 @@ export default function DepartmentsPage() {
     Map<number, QueryDocumentSnapshot | null>
   >(new Map());
   const [loading, setLoading] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
 
   const [openModal, setOpenModal] = useState(false);
   const [editDepartment, setEditDepartment] = useState<Department | null>(null);
@@ -110,7 +109,6 @@ export default function DepartmentsPage() {
       return [];
     } finally {
       setLoading(false);
-      if (initialLoading) setInitialLoading(false);
     }
   };
 
@@ -316,9 +314,7 @@ export default function DepartmentsPage() {
           <motion.div
             key="department-list"
             initial={{ opacity: 0, y: 30 }}
-            animate={
-              !initialLoading ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }
-            }
+            animate={!loading ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
             <DepartmentList
@@ -327,7 +323,7 @@ export default function DepartmentsPage() {
               onEdit={handleEdit}
               onDelete={handleDelete}
               onAdd={handleAdd}
-              fetchMoreDepartments={fetchMoreDepartments} // nova prop
+              fetchMoreDepartments={fetchMoreDepartments}
             />
           </motion.div>
         </AnimatePresence>
