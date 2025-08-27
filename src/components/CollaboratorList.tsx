@@ -29,9 +29,9 @@ type Props = {
   onEditModal: (collaborator: Collaborator) => void;
   onDelete: (id: string) => void;
   onDeleteSelected: (ids: string[]) => void;
-  onLoadMore: () => void;
   loading: boolean;
-  hasMore: boolean;
+  selectedIds: string[];
+  setSelectedIds: React.Dispatch<React.SetStateAction<string[]>>;
 };
 
 export const CollaboratorList = ({
@@ -41,18 +41,19 @@ export const CollaboratorList = ({
   onEditModal,
   onDelete,
   onDeleteSelected,
-  onLoadMore,
   loading,
-  hasMore,
+  selectedIds,
+  setSelectedIds,
 }: Props) => {
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [filterName, setFilterName] = useState("");
   const [filterEmail, setFilterEmail] = useState("");
   const [filterDepartment, setFilterDepartment] = useState("");
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedColab, setSelectedColab] = useState<Collaborator | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
 
-  // --- Filtragem ---
+  const rowsPerPage = 5;
+
   const filtered = useMemo(() => {
     const nameF = filterName.toLowerCase();
     const emailF = filterEmail.toLowerCase();
@@ -67,8 +68,15 @@ export const CollaboratorList = ({
     });
   }, [collaborators, filterName, filterEmail, filterDepartment]);
 
+  const totalPages = Math.ceil(filtered.length / rowsPerPage);
+
+  const indexOfLast = (currentPage + 1) * rowsPerPage;
+  const indexOfFirst = indexOfLast - rowsPerPage;
+  const currentRows = filtered.slice(indexOfFirst, indexOfLast);
+
   const allSelected =
-    filtered.length > 0 && filtered.every((c) => selectedIds.includes(c.id));
+    currentRows.length > 0 &&
+    currentRows.every((c) => selectedIds.includes(c.id));
 
   const handleSelect = (id: string) =>
     setSelectedIds((prev) =>
@@ -76,7 +84,20 @@ export const CollaboratorList = ({
     );
 
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedIds(event.target.checked ? filtered.map((c) => c.id) : []);
+    setSelectedIds((prev) =>
+      event.target.checked
+        ? Array.from(new Set([...prev, ...currentRows.map((c) => c.id)]))
+        : prev.filter((id) => !currentRows.some((c) => c.id === id))
+    );
+  };
+
+  const handleLoadMore = (direction: "next" | "prev") => {
+    if (direction === "next" && currentPage + 1 < totalPages) {
+      setCurrentPage((p) => p + 1);
+    }
+    if (direction === "prev" && currentPage > 0) {
+      setCurrentPage((p) => p - 1);
+    }
   };
 
   return (
@@ -92,7 +113,12 @@ export const CollaboratorList = ({
         <Typography variant="h5" sx={{ fontWeight: 600, color: "#222" }}>
           Colaboradores
         </Typography>
-        <Box display="flex" gap={2}>
+        <Box display="flex" gap={2} alignItems="center">
+          {selectedIds.length > 0 && (
+            <Typography variant="body2" sx={{ color: "#6B7280", mr: 1 }}>
+              {selectedIds.length} selecionado(s)
+            </Typography>
+          )}
           <Button
             variant="contained"
             sx={{
@@ -181,14 +207,20 @@ export const CollaboratorList = ({
                     key={label}
                     sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}
                   >
-                    {label} <ArrowDownwardIcon sx={{ fontSize: 16, ml: 0.5 }} />
+                    {label}{" "}
+                    <ArrowDownwardIcon
+                      sx={{ fontSize: 16, ml: 0.5, verticalAlign: "middle" }}
+                    />
                   </TableCell>
                 ))}
                 <TableCell
                   align="right"
                   sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}
                 >
-                  Status <ArrowDownwardIcon sx={{ fontSize: 16, ml: 0.5 }} />
+                  Status{" "}
+                  <ArrowDownwardIcon
+                    sx={{ fontSize: 16, ml: 0.5, verticalAlign: "middle" }}
+                  />
                 </TableCell>
                 <TableCell
                   align="center"
@@ -200,7 +232,7 @@ export const CollaboratorList = ({
             </TableHead>
 
             <TableBody>
-              {filtered.map((c) => (
+              {currentRows.map((c) => (
                 <TableRow key={c.id} sx={{ background: "#fff", height: 64 }}>
                   <TableCell padding="checkbox">
                     <Checkbox
@@ -209,16 +241,19 @@ export const CollaboratorList = ({
                       color="primary"
                     />
                   </TableCell>
+
                   <TableCell>
-                    <Box display="flex" alignItems="center" gap={1}>
+                    <Box display="flex" alignItems="center" gap={1.5}>
                       <Avatar src={c.avatarUrl} alt={c.name} />
                       <Typography sx={{ fontWeight: 500, color: "#222" }}>
                         {c.name}
                       </Typography>
                     </Box>
                   </TableCell>
+
                   <TableCell>{c.email}</TableCell>
                   <TableCell>{c.departmentName ?? ""}</TableCell>
+
                   <TableCell align="right">
                     <Chip
                       label={c.status === "ativo" ? "Ativo" : "Inativo"}
@@ -229,6 +264,7 @@ export const CollaboratorList = ({
                       }}
                     />
                   </TableCell>
+
                   <TableCell align="center">
                     <IconButton
                       color="primary"
@@ -247,15 +283,31 @@ export const CollaboratorList = ({
                     >
                       <Visibility />
                     </IconButton>
-                    <IconButton color="error" onClick={() => onDelete(c.id)}>
+                    <IconButton
+                      color="error"
+                      onClick={() => onDelete(c.id)}
+                      title="Excluir"
+                    >
                       <DeleteIcon />
                     </IconButton>
                   </TableCell>
                 </TableRow>
               ))}
+
+              {currentRows.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Nenhum colaborador encontrado nesta página com os filtros
+                      atuais.
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
 
+          {/* Modal de Visualização */}
           <ViewCollaboratorModal
             open={viewModalOpen}
             onClose={() => setViewModalOpen(false)}
@@ -264,17 +316,30 @@ export const CollaboratorList = ({
             departments={departments}
           />
 
-          {hasMore && (
-            <Box display="flex" justifyContent="center" mt={3} mb={3}>
-              <Button
-                variant="outlined"
-                onClick={onLoadMore}
-                disabled={loading}
-              >
-                {loading ? "Carregando..." : "Carregar mais"}
-              </Button>
-            </Box>
-          )}
+          {/* Paginação */}
+          {/* Paginação */}
+          <Box
+            display="flex"
+            justifyContent="space-between"
+            mt={3}
+            mb={3}
+            px={2}
+          >
+            <Button
+              variant="outlined"
+              onClick={() => handleLoadMore("prev")}
+              disabled={loading || currentPage === 0}
+            >
+              Anterior
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => handleLoadMore("next")}
+              disabled={loading || currentPage + 1 >= totalPages}
+            >
+              Próxima
+            </Button>
+          </Box>
         </Paper>
       </Box>
     </Box>

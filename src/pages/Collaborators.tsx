@@ -18,35 +18,23 @@ import {
 import { Collaborator, Department } from "../types";
 import { fetchDepartments } from "../firebase/departments";
 
-import {
-  collection,
-  getDocs,
-  query,
-  orderBy,
-  limit,
-  startAfter,
-  QueryDocumentSnapshot,
-} from "firebase/firestore";
+import { collection, getDocs, orderBy, query } from "firebase/firestore";
 import { db } from "../firebase/config";
 
-// Utility: Remove undefined, null, or empty strings
+// Remove undefined, null, or empty strings
 const cleanObject = <T extends Record<string, any>>(obj: T): T =>
   Object.fromEntries(
     Object.entries(obj).filter(
-      ([, v]) => v !== undefined && v !== null && v !== ""
+      ([_, v]) => v !== undefined && v !== null && v !== ""
     )
   ) as T;
 
 export default function CollaboratorsPage() {
-  // =======================
-  // STATES
-  // =======================
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const [formStep, setFormStep] = useState<1 | 2 | null>(null);
   const [formData, setFormData] = useState<Partial<
@@ -66,34 +54,26 @@ export default function CollaboratorsPage() {
     message: "",
   });
 
-  // Modal de edição rápida
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editModalLoading, setEditModalLoading] = useState(false);
   const [selectedCollaborator, setSelectedCollaborator] =
     useState<Collaborator | null>(null);
 
   // =======================
-  // FETCH FUNCTIONS
+  // FETCH
   // =======================
-  const fetchCollaboratorsPaged = async (loadMore = false) => {
-    if (loading) return;
+  const fetchCollaborators = async () => {
     setLoading(true);
-
     try {
       const ref = collection(db, "collaborators");
-      let q = query(ref, orderBy("name"), limit(10));
-      if (loadMore && lastDoc)
-        q = query(ref, orderBy("name"), startAfter(lastDoc), limit(10));
-
+      const q = query(ref, orderBy("name"));
       const snapshot = await getDocs(q);
-      const newData: Collaborator[] = snapshot.docs.map((doc) => ({
+
+      const data: Collaborator[] = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...(doc.data() as Omit<Collaborator, "id">),
       }));
-
-      setCollaborators((prev) => (loadMore ? [...prev, ...newData] : newData));
-      setLastDoc(snapshot.docs[snapshot.docs.length - 1] ?? null);
-      setHasMore(snapshot.docs.length === 10);
+      setCollaborators(data);
     } catch (e) {
       console.error(e);
       setFeedback({
@@ -103,7 +83,7 @@ export default function CollaboratorsPage() {
       });
     } finally {
       setLoading(false);
-      if (initialLoading) setInitialLoading(false);
+      setInitialLoading(false);
     }
   };
 
@@ -122,24 +102,22 @@ export default function CollaboratorsPage() {
   };
 
   useEffect(() => {
-    fetchCollaboratorsPaged();
+    fetchCollaborators();
     fetchAllDepartments();
   }, []);
 
   // =======================
-  // MULTI-STEP FORM HANDLERS
+  // FORM HANDLERS
   // =======================
   const handleAdd = () => {
     setFormStep(1);
     setEditCollaborator(null);
   };
-
   const handleBack = () => {
     setFormStep(null);
     setFormData(null);
     setEditCollaborator(null);
   };
-
   const handleNextStep1 = (data: {
     name: string;
     email: string;
@@ -154,7 +132,6 @@ export default function CollaboratorsPage() {
     });
     setFormStep(2);
   };
-
   const handleFinish = async (
     data: Partial<Collaborator> & { departmentName?: string }
   ) => {
@@ -223,8 +200,7 @@ export default function CollaboratorsPage() {
       setFormStep(null);
       setFormData(null);
       setEditCollaborator(null);
-
-      await fetchCollaboratorsPaged(false);
+      await fetchCollaborators();
       await fetchAllDepartments();
     } catch (e) {
       console.error(e);
@@ -239,7 +215,7 @@ export default function CollaboratorsPage() {
   };
 
   // =======================
-  // EDIT MODAL HANDLERS
+  // EDIT MODAL
   // =======================
   const handleEditModalOpen = (collaborator: Collaborator) => {
     setSelectedCollaborator(collaborator);
@@ -252,7 +228,6 @@ export default function CollaboratorsPage() {
   const handleEditModalSave = async (data: Partial<Collaborator>) => {
     if (!selectedCollaborator) return;
     setEditModalLoading(true);
-
     try {
       const seniority = data.seniority || selectedCollaborator.seniority;
       const isGestor = seniority === "gestor";
@@ -279,8 +254,7 @@ export default function CollaboratorsPage() {
         type: "success",
         message: "Colaborador atualizado com sucesso!",
       });
-
-      await fetchCollaboratorsPaged(false);
+      await fetchCollaborators();
       await fetchAllDepartments();
       handleEditModalClose();
     } catch (e) {
@@ -296,7 +270,7 @@ export default function CollaboratorsPage() {
   };
 
   // =======================
-  // DELETE HANDLERS
+  // DELETE
   // =======================
   const handleDelete = async (id: string) => {
     setLoading(true);
@@ -307,7 +281,7 @@ export default function CollaboratorsPage() {
         type: "success",
         message: "Colaborador excluído com sucesso!",
       });
-      await fetchCollaboratorsPaged(false);
+      await fetchCollaborators();
       await fetchAllDepartments();
     } catch (e) {
       console.error(e);
@@ -320,7 +294,6 @@ export default function CollaboratorsPage() {
       setLoading(false);
     }
   };
-
   const handleDeleteSelected = async (ids: string[]) => {
     setLoading(true);
     try {
@@ -330,7 +303,7 @@ export default function CollaboratorsPage() {
         type: "success",
         message: "Colaboradores excluídos com sucesso!",
       });
-      await fetchCollaboratorsPaged(false);
+      await fetchCollaborators();
       await fetchAllDepartments();
     } catch (e) {
       console.error(e);
@@ -342,17 +315,6 @@ export default function CollaboratorsPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleLoadMore = () => {
-    if (!loading && hasMore) fetchCollaboratorsPaged(true);
-  };
-
-  // Configurações de animação (sem variants para evitar problemas de tipagem)
-  const fadeInUp = {
-    initial: { opacity: 0, y: 20 },
-    animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.4 }
   };
 
   return (
@@ -379,7 +341,9 @@ export default function CollaboratorsPage() {
             <motion.div
               key="collaborator-list"
               initial={{ opacity: 0, y: 30 }}
-              animate={!initialLoading ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+              animate={
+                !initialLoading ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }
+              }
               transition={{ duration: 0.5, delay: 0.2 }}
             >
               <CollaboratorList
@@ -389,43 +353,27 @@ export default function CollaboratorsPage() {
                 onEditModal={handleEditModalOpen}
                 onDelete={handleDelete}
                 onDeleteSelected={handleDeleteSelected}
-                onLoadMore={handleLoadMore}
                 loading={loading}
-                hasMore={hasMore}
+                selectedIds={selectedIds}
+                setSelectedIds={setSelectedIds}
               />
             </motion.div>
           ) : formStep === 1 ? (
-            <motion.div
-              key="step1"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <Step1
-                next={handleNextStep1}
-                back={handleBack}
-                loading={loading}
-                editData={editCollaborator || undefined}
-              />
-            </motion.div>
+            <Step1
+              next={handleNextStep1}
+              back={handleBack}
+              loading={loading}
+              editData={editCollaborator || undefined}
+            />
           ) : (
-            <motion.div
-              key="step2"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <Step2
-                next={handleFinish}
-                back={handleBack}
-                loading={loading}
-                editData={editCollaborator || undefined}
-                collaborators={collaborators}
-                departments={departments}
-              />
-            </motion.div>
+            <Step2
+              next={handleFinish}
+              back={handleBack}
+              loading={loading}
+              editData={editCollaborator || undefined}
+              collaborators={collaborators}
+              departments={departments}
+            />
           )}
         </AnimatePresence>
 

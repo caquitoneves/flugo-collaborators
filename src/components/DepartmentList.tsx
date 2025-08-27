@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Box,
   Table,
@@ -25,10 +25,10 @@ type Props = {
   onEdit: (dept: Department) => void;
   onDelete: (id: string) => void;
   onAdd: () => void;
-  onLoadMore: () => void;
-  loading: boolean;
-  hasMore: boolean;
+  fetchMoreDepartments: (page: number, pageSize: number) => Promise<Department[]>;
 };
+
+const PAGE_SIZE = 5;
 
 export const DepartmentList = ({
   collaborators,
@@ -36,17 +36,39 @@ export const DepartmentList = ({
   onEdit,
   onDelete,
   onAdd,
-  onLoadMore,
-  loading,
-  hasMore,
+  fetchMoreDepartments,
 }: Props) => {
   const [filterName, setFilterName] = useState("");
+  const [paginatedDepartments, setPaginatedDepartments] = useState<Department[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasNext, setHasNext] = useState(false);
+  const [loading, setLoading] = useState(false);
 
+  // Filtra departamentos
   const filteredDepartments = useMemo(() => {
-    return departments.filter((d) =>
+    return paginatedDepartments.filter((d) =>
       d.name.toLowerCase().includes(filterName.toLowerCase())
     );
-  }, [departments, filterName]);
+  }, [paginatedDepartments, filterName]);
+
+  const loadPage = async (page: number) => {
+    setLoading(true);
+    try {
+      const data = await fetchMoreDepartments(page, PAGE_SIZE);
+      setPaginatedDepartments(data);
+      setCurrentPage(page);
+      setHasNext(data.length === PAGE_SIZE);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Inicializa a primeira página
+  useEffect(() => {
+    loadPage(1);
+  }, [departments]);
 
   return (
     <Box sx={{ width: "100%", p: 2, mt: 3 }}>
@@ -105,21 +127,14 @@ export const DepartmentList = ({
           <Table sx={{ minWidth: 650, bgcolor: "#F9FAFB" }}>
             <TableHead>
               <TableRow sx={{ bgcolor: "#F9FAFB", height: 56 }}>
-                <TableCell
-                  sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}
-                >
+                <TableCell sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}>
                   Nome <ArrowDownwardIcon sx={{ fontSize: 16, ml: 0.5 }} />
                 </TableCell>
-                <TableCell
-                  sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}
-                >
+                <TableCell sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}>
                   Gestor <ArrowDownwardIcon sx={{ fontSize: 16, ml: 0.5 }} />
                 </TableCell>
-                <TableCell
-                  sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}
-                >
-                  Colaboradores{" "}
-                  <ArrowDownwardIcon sx={{ fontSize: 16, ml: 0.5 }} />
+                <TableCell sx={{ fontWeight: 600, color: "#768591", fontSize: 14 }}>
+                  Colaboradores <ArrowDownwardIcon sx={{ fontSize: 16, ml: 0.5 }} />
                 </TableCell>
                 <TableCell
                   align="center"
@@ -143,17 +158,11 @@ export const DepartmentList = ({
                     {collaborators.find((c) => c.id === dept.manager) ? (
                       <Box display="flex" alignItems="center" gap={1}>
                         <Avatar
-                          src={
-                            collaborators.find((c) => c.id === dept.manager)
-                              ?.avatarUrl
-                          }
+                          src={collaborators.find((c) => c.id === dept.manager)?.avatarUrl}
                           sx={{ width: 32, height: 32 }}
                         />
                         <Typography sx={{ fontWeight: 500 }}>
-                          {
-                            collaborators.find((c) => c.id === dept.manager)
-                              ?.name
-                          }
+                          {collaborators.find((c) => c.id === dept.manager)?.name}
                         </Typography>
                       </Box>
                     ) : (
@@ -168,12 +177,7 @@ export const DepartmentList = ({
                         .map((colab) => (
                           <Chip
                             key={colab.id}
-                            avatar={
-                              <Avatar
-                                src={colab.avatarUrl}
-                                sx={{ width: 24, height: 24 }}
-                              />
-                            }
+                            avatar={<Avatar src={colab.avatarUrl} sx={{ width: 24, height: 24 }} />}
                             label={colab.name}
                             sx={{ mb: 0.5 }}
                           />
@@ -194,17 +198,23 @@ export const DepartmentList = ({
             </TableBody>
           </Table>
 
-          {hasMore && (
-            <Box display="flex" justifyContent="center" mt={3} mb={3}>
-              <Button
-                variant="outlined"
-                onClick={onLoadMore}
-                disabled={loading}
-              >
-                {loading ? "Carregando..." : "Carregar mais"}
-              </Button>
-            </Box>
-          )}
+          {/* Paginação */}
+          <Box display="flex" justifyContent="space-between" mt={3} mb={3} px={2}>
+            <Button
+              variant="outlined"
+              onClick={() => loadPage(currentPage - 1)}
+              disabled={currentPage === 1 || loading}
+            >
+              Anterior
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => loadPage(currentPage + 1)}
+              disabled={!hasNext || loading}
+            >
+              Próximo
+            </Button>
+          </Box>
         </Paper>
       </Box>
     </Box>

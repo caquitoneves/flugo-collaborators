@@ -31,7 +31,6 @@ import { DepartmentList } from "../components/DepartmentList";
 import { DepartmentModal } from "../components/DepartmentModal";
 import { Department, Collaborator } from "../types";
 import {
-  fetchDepartments,
   addDepartment,
   updateDepartment,
   deleteDepartment,
@@ -44,9 +43,10 @@ import {
 export default function DepartmentsPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
-  const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot | null>(null);
+  const [lastDocs, setLastDocs] = useState<
+    Map<number, QueryDocumentSnapshot | null>
+  >(new Map());
   const [loading, setLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
   const [initialLoading, setInitialLoading] = useState(true);
 
   const [openModal, setOpenModal] = useState(false);
@@ -75,17 +75,22 @@ export default function DepartmentsPage() {
   });
 
   // =====================
-  // Fetch funções com paginação
+  // Função paginada chamada pelo filho
   // =====================
-  const fetchDepartmentsPaged = async (loadMore = false) => {
-    if (loading) return;
+  const fetchMoreDepartments = async (
+    page: number,
+    pageSize: number
+  ): Promise<Department[]> => {
+    if (loading) return [];
     setLoading(true);
-
     try {
       const ref = collection(db, "departments");
-      let q = query(ref, orderBy("name"), limit(10));
-      if (loadMore && lastDoc)
-        q = query(ref, orderBy("name"), startAfter(lastDoc), limit(10));
+      let q = query(ref, orderBy("name"), limit(pageSize));
+
+      // usa o último documento da página anterior para startAfter
+      const lastDoc = lastDocs.get(page - 1);
+      if (lastDoc)
+        q = query(ref, orderBy("name"), startAfter(lastDoc), limit(pageSize));
 
       const snapshot = await getDocs(q);
       const newData: Department[] = snapshot.docs.map((doc) => ({
@@ -93,18 +98,25 @@ export default function DepartmentsPage() {
         ...(doc.data() as Omit<Department, "id">),
       }));
 
-      setDepartments((prev) => (loadMore ? [...prev, ...newData] : newData));
-      setLastDoc(snapshot.docs[snapshot.docs.length - 1] ?? null);
-      setHasMore(snapshot.docs.length === 10);
-    } catch (e) {
-      console.error(e);
+      // atualiza mapa de últimos documentos por página
+      setLastDocs((prev) =>
+        new Map(prev).set(page, snapshot.docs[snapshot.docs.length - 1] ?? null)
+      );
+
+      return newData;
+    } catch (error) {
+      console.error(error);
       setFeedback({ open: true, message: "Erro ao carregar departamentos." });
+      return [];
     } finally {
       setLoading(false);
       if (initialLoading) setInitialLoading(false);
     }
   };
 
+  // =====================
+  // Colaboradores
+  // =====================
   const loadCollaborators = async () => {
     try {
       const cols = await getCollaborators();
@@ -116,17 +128,18 @@ export default function DepartmentsPage() {
   };
 
   const refreshData = async () => {
-    await fetchDepartmentsPaged(false);
+    setLastDocs(new Map());
+    const initialDepts = await fetchMoreDepartments(1, 10);
+    setDepartments(initialDepts);
     await loadCollaborators();
   };
 
   useEffect(() => {
-    loadCollaborators();
-    fetchDepartmentsPaged(false);
+    refreshData();
   }, []);
 
   // =====================
-  // Handlers
+  // Handlers CRUD
   // =====================
   const handleAdd = () => {
     setEditDepartment(null);
@@ -149,7 +162,6 @@ export default function DepartmentsPage() {
       setFeedback({ open: true, message: "Nome e gestor são obrigatórios!" });
       return;
     }
-
     try {
       const isDuplicate = departments.some(
         (d) =>
@@ -181,11 +193,10 @@ export default function DepartmentsPage() {
         });
       }
 
-      // Update collaborators
+      // Atualiza colaboradores
       for (const colab of collaborators) {
         const shouldBelong =
           form.collaborators.includes(colab.id) || colab.id === form.manager;
-
         if (shouldBelong) {
           await updateCollaborator(colab.id, {
             departmentId: deptId,
@@ -204,7 +215,7 @@ export default function DepartmentsPage() {
       setOpenModal(false);
       await refreshData();
     } catch (error) {
-      console.error("Erro ao salvar departamento:", error);
+      console.error(error);
       setFeedback({ open: true, message: "Erro ao salvar departamento." });
     }
   };
@@ -229,13 +240,11 @@ export default function DepartmentsPage() {
 
   const handleConfirmTransfer = async () => {
     if (!transferFromDeptId || !transferToDeptId) return;
-
     try {
       const newDept = departments.find((d) => d.id === transferToDeptId);
       const newManagerId = newDept?.manager || "";
       const newDeptName = newDept?.name || "";
 
-      // Transfer collaborators
       for (const colab of transferColabs) {
         await updateCollaborator(colab.id, {
           departmentId: transferToDeptId,
@@ -244,7 +253,6 @@ export default function DepartmentsPage() {
         });
       }
 
-      // Delete department
       await deleteDepartment(transferFromDeptId);
 
       setTransferDialogOpen(false);
@@ -259,14 +267,13 @@ export default function DepartmentsPage() {
 
       await refreshData();
     } catch (error) {
-      console.error("Erro ao transferir colaboradores:", error);
+      console.error(error);
       setFeedback({ open: true, message: "Erro ao transferir colaboradores." });
     }
   };
 
   const handleConfirmDelete = async () => {
     if (!departmentToDelete) return;
-
     try {
       await deleteDepartment(departmentToDelete.id);
       setConfirmDeleteDialogOpen(false);
@@ -278,13 +285,9 @@ export default function DepartmentsPage() {
       });
       await refreshData();
     } catch (error) {
-      console.error("Erro ao excluir departamento:", error);
+      console.error(error);
       setFeedback({ open: true, message: "Erro ao excluir departamento." });
     }
-  };
-
-  const handleLoadMore = () => {
-    if (!loading && hasMore) fetchDepartmentsPaged(true);
   };
 
   return (
@@ -310,7 +313,9 @@ export default function DepartmentsPage() {
           <motion.div
             key="department-list"
             initial={{ opacity: 0, y: 30 }}
-            animate={!initialLoading ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+            animate={
+              !initialLoading ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }
+            }
             transition={{ duration: 0.5, delay: 0.2 }}
           >
             <DepartmentList
@@ -319,9 +324,7 @@ export default function DepartmentsPage() {
               onEdit={handleEdit}
               onDelete={handleDelete}
               onAdd={handleAdd}
-              onLoadMore={handleLoadMore}
-              loading={loading}
-              hasMore={hasMore}
+              fetchMoreDepartments={fetchMoreDepartments} // nova prop
             />
           </motion.div>
         </AnimatePresence>
