@@ -158,8 +158,11 @@ export default function DepartmentsPage() {
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.manager) {
-      setFeedback({ open: true, message: "Nome e gestor são obrigatórios!" });
+    if (!form.name) {
+      setFeedback({
+        open: true,
+        message: "Nome do departamento é obrigatório!",
+      });
       return;
     }
     try {
